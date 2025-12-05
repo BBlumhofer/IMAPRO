@@ -126,6 +126,7 @@ public class NodeRegistry
         
         // Monitoring Nodes
         Register<ReadStorageNode>();
+        Register<CheckStartupSkillStatusNode>();
         
         // Skill Nodes
         Register<ExecuteSkillNode>();

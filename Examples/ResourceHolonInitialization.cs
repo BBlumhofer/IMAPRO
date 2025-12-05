@@ -14,7 +14,7 @@ public class ResourceHolonInitialization
     public static async Task Run(string[] args)
     {
         Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
-        Console.WriteLine("║    MAS-BT: Resource Holon Initialization Example            ║");
+        Console.WriteLine("║    MAS-BT: Resource Holon Initialization Example             ║");
         Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
         Console.WriteLine();
         

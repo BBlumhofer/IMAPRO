@@ -14,6 +14,7 @@ public class ExecuteSkillNode : BTNode
 {
     public string SkillName { get; set; } = string.Empty;
     public string ModuleName { get; set; } = string.Empty;
+    public string Parameters { get; set; } = string.Empty; // NEW: z.B. "ProductId=HelloWorld,Param2=Value2"
     public bool WaitForCompletion { get; set; } = true;
     public bool ResetAfterCompletion { get; set; } = true;
     public bool ResetBeforeIfHalted { get; set; } = true;
@@ -84,20 +85,77 @@ public class ExecuteSkillNode : BTNode
             Logger.LogInformation("ExecuteSkill: Skill {SkillName} found. Current state: {State}", 
                 SkillName, skill.CurrentState);
 
-            // Verwende module.StartAsync() wie im Integration Test
-            // Das macht: Reset (falls nötig) → Start → Wait for Completion
-            Logger.LogInformation("ExecuteSkill: Starting skill {SkillName} via module.StartAsync()...", SkillName);
+            // NEW: Parse Parameters (z.B. "ProductId=HelloWorld,Param2=Value2")
+            Dictionary<string, object>? parameters = null;
+            if (!string.IsNullOrEmpty(Parameters))
+            {
+                parameters = new Dictionary<string, object>();
+                var paramPairs = Parameters.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var pair in paramPairs)
+                {
+                    var parts = pair.Split('=', 2);
+                    if (parts.Length == 2)
+                    {
+                        parameters[parts[0].Trim()] = parts[1].Trim();
+                        Logger.LogDebug("ExecuteSkill: Parameter {Key} = {Value}", parts[0].Trim(), parts[1].Trim());
+                    }
+                }
+            }
+
+            // Führe Skill aus via RemoteSkill.ExecuteAsync()
+            Logger.LogInformation("ExecuteSkill: Executing skill {SkillName} with parameters: {Parameters}", 
+                SkillName, Parameters);
             
             var timeout = TimeSpan.FromSeconds(TimeoutSeconds);
-            await module.StartAsync(reset: ResetBeforeIfHalted, timeout: timeout);
+            
+            // ExecuteAsync gibt FinalResultData als Dictionary zurück
+            dynamic resultDataDynamic = await ((dynamic)skill).ExecuteAsync(
+                parameters: parameters,
+                waitForCompletion: WaitForCompletion,
+                resetAfterCompletion: ResetAfterCompletion,
+                resetBeforeIfHalted: ResetBeforeIfHalted,
+                timeout: timeout
+            );
+
+            // Cast zu Dictionary für static typing
+            IDictionary<string, object?>? resultData = resultDataDynamic as IDictionary<string, object?>;
+
+            // Lese FinalResultData nach Completion
+            if (WaitForCompletion && resultData != null)
+            {
+                try
+                {
+                    // Speichere alle FinalResultData im Context
+                    foreach (var kvp in resultData)
+                    {
+                        var key = kvp.Key;
+                        var value = kvp.Value;
+                        
+                        Logger.LogInformation("ExecuteSkill: Skill {SkillName} - FinalResultData {Key} = {Value}", 
+                            SkillName, key, value?.ToString() ?? "null");
+                        
+                        Set($"{SkillName}_{key}", value);
+                        Context.Set($"Skill_{SkillName}_{key}", value);
+                    }
+                    
+                    Context.Set($"Skill_{SkillName}_FinalResultData", resultData);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "ExecuteSkill: Could not process FinalResultData for skill {SkillName}", SkillName);
+                }
+            }
 
             // Speichere Ergebnis
             Set("started", true);
             Set("lastExecutedSkill", SkillName);
-            Set($"skill_{SkillName}_state", skill.CurrentState.ToString());
             
-            Logger.LogInformation("ExecuteSkill: Module {ModuleName} started successfully. Final state: {State}", 
-                module.Name, skill.CurrentState);
+            var finalState = await skill.GetStateAsync();
+            var stateName = finalState.HasValue ? ((SkillStates)finalState.Value).ToString() : "Unknown";
+            Set($"skill_{SkillName}_state", stateName);
+            
+            Logger.LogInformation("ExecuteSkill: Skill {SkillName} execution completed. Final state: {State}", 
+                SkillName, stateName);
             
             return NodeStatus.Success;
         }
@@ -109,6 +167,16 @@ public class ExecuteSkillNode : BTNode
         }
         catch (InvalidOperationException ioe)
         {
+            // Bei Continuous Skills ohne WaitForCompletion: Prüfe ob Skill bereits läuft
+            if (!WaitForCompletion && ioe.Message.Contains("already running"))
+            {
+                Logger.LogInformation("ExecuteSkill: Skill {SkillName} is already running (continuous skill), treating as success", SkillName);
+                Set("started", true);
+                Set("lastExecutedSkill", SkillName);
+                Set($"skill_{SkillName}_state", "Running");
+                return NodeStatus.Success;
+            }
+            
             Logger.LogError(ioe, "ExecuteSkill: Invalid state for skill {SkillName}", SkillName);
             Set("started", false);
             return NodeStatus.Failure;

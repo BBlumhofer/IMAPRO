@@ -54,7 +54,8 @@ public class ModuleInitializationTestRunner
         
         try
         {
-            var btFilePath = "Trees/ModuleInitializationTest.bt.xml";
+            // var btFilePath = "Trees/ModuleInitializationTest.bt.xml";
+            var btFilePath = "Trees/Init_and_ExecuteSkill.bt.xml";
             
             if (!File.Exists(btFilePath))
             {
