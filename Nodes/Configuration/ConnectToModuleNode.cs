@@ -1,0 +1,108 @@
+using MAS_BT.Core;
+using Microsoft.Extensions.Logging;
+using UAClient.Client;
+using UAClient.Common;
+
+namespace MAS_BT.Nodes.Configuration;
+
+/// <summary>
+/// ConnectToModule - Verbindet via OPC UA zu einem Modul-Server
+/// Erstellt UaClient + RemoteServer und speichert sie im Context für Wiederverwendung
+/// </summary>
+public class ConnectToModuleNode : BTNode
+{
+    public string Endpoint { get; set; } = string.Empty;
+    public int TimeoutMs { get; set; } = 10000;
+    public string Username { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+
+    public ConnectToModuleNode() : base("ConnectToModule")
+    {
+    }
+
+    public override async Task<NodeStatus> Execute()
+    {
+        Logger.LogInformation("ConnectToModule: Connecting to {Endpoint}", Endpoint);
+
+        try
+        {
+            // Prüfe ob bereits ein RemoteServer im Context existiert
+            var existingServer = Context.Get<RemoteServer>("RemoteServer");
+            if (existingServer != null)
+            {
+                // Prüfe Connection-Status
+                if (existingServer.Status == RemoteServerStatus.Connected)
+                {
+                    Logger.LogDebug("ConnectToModule: Already connected to {Endpoint}, reusing existing connection", Endpoint);
+                    Set("connected", true);
+                    Set("moduleEndpoint", Endpoint);
+                    return NodeStatus.Success;
+                }
+                else
+                {
+                    Logger.LogWarning("ConnectToModule: Existing server in disconnected state, reconnecting...");
+                    try
+                    {
+                        var reconnectTimeout = TimeoutMs / 1000.0;
+                        await existingServer.ConnectAsync(reconnectTimeout);
+                        
+                        Set("connected", true);
+                        Set("moduleEndpoint", Endpoint);
+                        Logger.LogInformation("ConnectToModule: Reconnected successfully");
+                        return NodeStatus.Success;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogWarning(ex, "ConnectToModule: Reconnect failed, creating new connection");
+                        try { existingServer.Dispose(); } catch { }
+                        Context.Remove("RemoteServer");
+                        Context.Remove("UaClient");
+                    }
+                }
+            }
+
+            // Erstelle NEUE Verbindung
+            Logger.LogInformation("ConnectToModule: Creating new connection to {Endpoint}", Endpoint);
+            
+            // Hole Username/Password aus Context falls nicht gesetzt
+            var username = !string.IsNullOrEmpty(Username) ? Username : Context.Get<string>("config.OPCUA.Username") ?? "";
+            var password = !string.IsNullOrEmpty(Password) ? Password : Context.Get<string>("config.OPCUA.Password") ?? "";
+            
+            Logger.LogDebug("ConnectToModule: Using authentication - Username: {Username}", 
+                string.IsNullOrEmpty(username) ? "(anonymous)" : username);
+            
+            // 1. Erstelle UaClient mit Credentials
+            var client = new UaClient(Endpoint, username, password);
+            
+            // 2. Erstelle RemoteServer (wrapped Client + Auto-Discovery)
+            var server = new RemoteServer(client);
+            
+            // 3. Verbinde (macht automatisch Discovery + Subscriptions)
+            var timeoutSeconds = TimeoutMs / 1000.0;
+            await server.ConnectAsync(timeoutSeconds);
+
+            // 4. Speichere im Context für andere Nodes (WICHTIG: Nur EINE Instanz!)
+            Context.Set("UaClient", client);
+            Context.Set("RemoteServer", server);
+            Context.Set("moduleEndpoint", Endpoint);
+            
+            Set("connected", true);
+            
+            Logger.LogInformation("ConnectToModule: Connected successfully to {Endpoint}", Endpoint);
+            Logger.LogInformation("  → Discovered {Count} modules", server.Modules.Count);
+            
+            foreach (var module in server.Modules.Values)
+            {
+                Logger.LogDebug("  → Module: {ModuleName} ({SkillCount} skills)", module.Name, module.SkillSet.Count);
+            }
+            
+            return NodeStatus.Success;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "ConnectToModule: Connection failed to {Endpoint}", Endpoint);
+            Set("connected", false);
+            return NodeStatus.Failure;
+        }
+    }
+}

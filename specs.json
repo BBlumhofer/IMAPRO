@@ -1,0 +1,540 @@
+{
+  "BehaviorTreeNodeLibrary": {
+    "MonitoringNodes": [
+      {
+        "name": "CheckReadyState",
+        "inputs": { "opcNode": "string" },
+        "outputs": { "isReady": "bool" },
+        "description": "Reads the OPC UA readiness flag from the module (e.g. /State/isReady). Returns true if the machine signals it is prepared to accept new work. Used before requesting any skill execution or resource allocation."
+      },
+      {
+        "name": "CheckLockedState",
+        "inputs": { "opcNode": "string", "expectLocked": "bool" },
+        "outputs": { "result": "bool" },
+        "description": "Checks whether a module is locked. If expectLocked=true, the node succeeds only if the lock state indicates active locking. If false, the node succeeds only if the module is free. Used for coordination and deadlock avoidance."
+      },
+      {
+        "name": "CheckErrorState",
+        "inputs": { "opcNode": "string", "expectedError": "int/null" },
+        "outputs": { "hasError": "bool" },
+        "description": "Reads the error code from the module. If expectedError is defined, the node checks for a specific code. If not, it simply evaluates whether any non-zero error is present. Helps detect malfunction or process deviations."
+      },
+      {
+        "name": "CheckAlarmHistory",
+        "inputs": { "alarmType": "string", "timeRange": "timespan" },
+        "outputs": { "hasAlarm": "bool" },
+        "description": "Queries the historical OPC UA alarm log for a given alarm type within a specified timeframe. Used to detect instability, frequent warnings or potentially unsafe operating conditions."
+      },
+      {
+        "name": "CheckInventory",
+        "inputs": { "moduleId": "string", "itemId": "string", "minAmount": "int" },
+        "outputs": { "available": "bool" },
+        "description": "Reads the inventory message from the module and verifies whether the required item exists in at least the minimum quantity. Works with slot-based and aggregate inventory models."
+      },
+      {
+        "name": "CheckToolAvailability",
+        "inputs": { "moduleId": "string", "toolId": "string" },
+        "outputs": { "available": "bool" },
+        "description": "Checks if a required tool is present and available in the module’s tool storage. Often used in preconditions of skill execution to validate that all necessary tools are prepared."
+      },
+      {
+        "name": "RefreshStateMessage",
+        "inputs": { "moduleId": "string" },
+        "outputs": { "stateMessage": "object" },
+        "description": "Refreshes all important module states by re-reading ready, locked, notifications, neighbors and inventory OPC UA nodes. Used as periodic update node in monitoring loops."
+      },
+      {
+        "name": "CheckScheduleFreshness",
+        "inputs": { "machineId": "string", "maxAgeMs": "int" },
+        "outputs": { "isFresh": "bool" },
+        "description": "Compares current system time with MachineSchedule.LastTimeUpdated. Returns false if the machine schedule has not been updated for too long, indicating possible drift or outdated planning information."
+      },
+      {
+        "name": "CheckTimeDrift",
+        "inputs": { "ntpTime": "datetime", "maxDriftMs": "int" },
+        "outputs": { "isSynchronized": "bool" },
+        "description": "Compares local agent time with the reference NTP time. If drift exceeds allowed limit, node returns false. Ensures consistent scheduling and synchronised time-base across distributed agents."
+      },
+      {
+        "name": "CheckNeighborAvailability",
+        "inputs": { "neighborId": "string" },
+        "outputs": { "available": "bool" },
+        "description": "Reads the Neighbors message or neighbor's state to verify whether the adjacent module is ready, not locked and not executing conflicting tasks. Useful for multi-module process flows."
+      },
+      {
+        "name": "CheckTransportArrival",
+        "inputs": { "transportRequestId": "string" },
+        "outputs": { "arrived": "bool" },
+        "description": "Evaluates whether a previously requested transport has arrived at the module. Uses transport system signals, event messages or state in the TransportAgent."
+      },
+      {
+        "name": "CheckCurrentSchedule",
+        "inputs": { "scheduleRef": "object" },
+        "outputs": { "isValid": "bool" },
+        "description": "Verifies whether the module’s actual schedule and the expected schedule (tentative or booked) still match. Detects conflicts, outdated entries or overlapping reservations."
+      },
+      {
+        "name": "CheckEarliestStartTime",
+        "inputs": { "taskId": "string", "timestamp": "datetime" },
+        "outputs": { "canStart": "bool" },
+        "description": "Compares the current time with the earliest allowed start time of a task. Useful for enforcing process constraints or synchronizing sequences."
+      },
+      {
+        "name": "CheckDeadlineFeasible",
+        "inputs": { "taskId": "string", "deadline": "datetime" },
+        "outputs": { "feasible": "bool" },
+        "description": "Checks whether there is enough time left to complete a scheduled task before its deadline, given current machine load and transport constraints."
+      },
+      {
+        "name": "CheckModuleCapacity",
+        "inputs": { "moduleId": "string", "requiredCapacity": "int" },
+        "outputs": { "sufficient": "bool" },
+        "description": "Evaluates whether the module has enough capacity (e.g., parallel processing slots, buffer space, energy budget) to start an additional task."
+      }
+    ],
+
+    "ConstraintNodes": [
+      {
+        "name": "RequiresTool",
+        "inputs": { "toolId": "string", "moduleId": "string" },
+        "outputs": { "isSatisfied": "bool" },
+        "description": "Ensures that a required tool is present and operational in the machine. A hard constraint for many production processes where tool availability defines executability."
+      },
+      {
+        "name": "RequiresMaterial",
+        "inputs": { "itemId": "string", "quantity": "int", "moduleId": "string" },
+        "outputs": { "isSatisfied": "bool" },
+        "description": "Checks whether enough material is available for the process step. Prevents task execution when buffer levels are insufficient."
+      },
+      {
+        "name": "ProductMatchesOrder",
+        "inputs": { "expectedProduct": "object", "moduleId": "string" },
+        "outputs": { "valid": "bool" },
+        "description": "Compares module inventory/product identifiers with the expected product type or ID for the current order. Ensures that the correct item is processed."
+      },
+      {
+        "name": "ProcessParametersValid",
+        "inputs": { "paramConstraints": "object", "moduleId": "string" },
+        "outputs": { "valid": "bool" },
+        "description": "Evaluates process parameters (temperature, speed, material settings) against the required parameter constraints for the step. Ensures that execution conditions are correct before starting."
+      },
+      {
+        "name": "ModuleReady",
+        "inputs": { "moduleId": "string" },
+        "outputs": { "ready": "bool" },
+        "description": "Aggregates several readiness checks (ready flag, no errors, no lock, safety cleared) and indicates whether the module can start work immediately."
+      },
+      {
+        "name": "ResourceAvailable",
+        "inputs": { "moduleId": "string" },
+        "outputs": { "available": "bool" },
+        "description": "Checks whether the module is free to take on additional tasks based on load, schedule occupancy and locking state."
+      },
+      {
+        "name": "SafetyOkay",
+        "inputs": { "zoneId": "string", "moduleId": "string" },
+        "outputs": { "safe": "bool" },
+        "description": "Evaluates safety sensors or OPC UA safety flags for the specified zone. Ensures that no skill execution begins during unsafe conditions."
+      },
+      {
+        "name": "RequireNeighborAvailable",
+        "inputs": { "neighborId": "string" },
+        "outputs": { "available": "bool" },
+        "description": "Verifies that a neighboring module or resource required for a multi-step process is operational and not locked."
+      }
+    ],
+
+    "SkillNodes": [
+      {
+        "name": "WaitForSkillState",
+        "inputs": { "skillName": "string", "state": "string", "timeout": "int" },
+        "outputs": { "reachedState": "bool" },
+        "description": "Subscribes to or repeatedly checks the skill’s OPC UA state until the expected state is reached or the timeout passes. Used to synchronize behavior trees with machine execution states."
+      },
+      {
+        "name": "ExecuteSkill",
+        "inputs": { "skillName": "string", "skillParams": "object" },
+        "outputs": { "started": "bool" },
+        "description": "Sends a SkillRequest to the machine to start executing the specified skill with parameters. Returns success if the request is acknowledged."
+      },
+      {
+        "name": "AbortSkill",
+        "inputs": { "skillName": "string" },
+        "outputs": { "aborted": "bool" },
+        "description": "Sends an abort command to the executing skill. Cancels execution and requests cleanup inside the machine’s execution agent."
+      },
+      {
+        "name": "PauseSkill",
+        "inputs": { "skillName": "string" },
+        "outputs": { "paused": "bool" },
+        "description": "Requests a skill to enter suspended state. Used for interruption logic or synchronization with other system components."
+      },
+      {
+        "name": "ResumeSkill",
+        "inputs": { "skillName": "string" },
+        "outputs": { "resumed": "bool" },
+        "description": "Resumes an earlier paused skill and brings it back into running state."
+      },
+      {
+        "name": "ManualCompleteSkill",
+        "inputs": { "skillName": "string" },
+        "outputs": { "completed": "bool" },
+        "description": "Manually marks a skill as completed in the scheduling logic, without actual execution. Used in error recovery or simulated execution."
+      },
+      {
+        "name": "RetrySkill",
+        "inputs": { "skillName": "string" },
+        "outputs": { "started": "bool" },
+        "description": "Attempts to re-execute a skill that failed or aborted previously. Can include backoff strategies for repeated failures."
+      },
+      {
+        "name": "MonitoringSkill",
+        "inputs": { "skillName": "string" },
+        "outputs": { "skillState": "object" },
+        "description": "Reads detailed monitoring values for the executing skill (progress, machine data, energy, etc.) to enable closed-loop execution monitoring."
+      },
+      {
+        "name": "UpdateInventory",
+        "inputs": { "skillName": "string" },
+        "outputs": { "inventoryUpdated": "bool" },
+        "description": "Updates internal or machine inventories after a skill execution based on Effects reported in the SkillResponse."
+      },
+      {
+        "name": "DetermineSkillParameters",
+        "inputs": { "skillName": "string", "productContext": "object" },
+        "outputs": { "skillParams": "object" },
+        "description": "Computes skill parameters dynamically from the product’s configuration or process context. Used when parameters depend on product type, material, variant or recipe."
+      }
+    ],
+
+    "PlanningNodes": [
+      {
+        "name": "ExecuteCapabilityMatchmaking",
+        "inputs": { "requiredCapability": "object" },
+        "outputs": { "matchResults": "object" },
+        "description": "Identifies all resources capable of performing the required capability by comparing capability descriptions and machine metadata."
+      },
+      {
+        "name": "FeedbackCapabilityMatchmaking",
+        "inputs": { "requiredCapability": "object" },
+        "outputs": { "feedbackProcessed": "bool" },
+        "description": "Processes capability matchmaking responses and updates internal candidate lists."
+      },
+      {
+        "name": "SchedulingExecute",
+        "inputs": { "requiredCapability": "object" },
+        "outputs": { "scheduleDraft": "object" },
+        "description": "Performs tentative scheduling for the required capability. Computes possible time windows and generates a preliminary schedule."
+      },
+      {
+        "name": "SchedulingFeedback",
+        "inputs": { "requiredCapability": "object" },
+        "outputs": { "isFeasible": "bool" },
+        "description": "Evaluates scheduling results and determines whether execution windows are valid and conflict-free."
+      },
+      {
+        "name": "CalculateOffer",
+        "inputs": { "requiredCapability": "object" },
+        "outputs": { "offer": "object" },
+        "description": "Generates an offer including cost, time windows, resource load and feasibility information for bidding phases."
+      },
+      {
+        "name": "SendOffer",
+        "inputs": { "requiredCapability": "object" },
+        "outputs": { "sent": "bool" },
+        "description": "Sends offer to requesting agent for further evaluation in the bidding process."
+      },
+      {
+        "name": "ReceiverRequestForOffer",
+        "inputs": { "requiredCapability": "object" },
+        "outputs": { "requestProcessed": "bool" },
+        "description": "Handles incoming capability requests and triggers offer generation."
+      },
+      {
+        "name": "UpdateMachineSchedule",
+        "inputs": { "requiredCapability": "object" },
+        "outputs": { "scheduleUpdated": "bool" },
+        "description": "Updates the machine’s actual schedule (booked or tentative entries). Ensures consistency and time-window alignment."
+      },
+      {
+        "name": "RequestTransport",
+        "inputs": { "requiredCapability": "object" },
+        "outputs": { "requested": "bool" },
+        "description": "Requests transport resources needed for delivering product or material to a specific module at a planned time."
+      },
+      {
+        "name": "EvaluateRequestTransportResponse",
+        "inputs": { "requiredCapability": "object" },
+        "outputs": { "validTransport": "bool" },
+        "description": "Processes transport responses to determine if transport availability aligns with scheduled production times."
+      },
+      {
+        "name": "CheckScheduleFeasibility",
+        "inputs": { "schedule": "object", "currentMachineState": "object" },
+        "outputs": { "feasible": "bool" },
+        "description": "Validates schedule entries against actual machine state (load, readiness, drift, conflicts). Used after tentative scheduling or re-planning."
+      }
+    ],
+
+    "ConfigurationNodes": [
+      {
+        "name": "ConnectToModule",
+        "inputs": { "endpoint": "string" },
+        "outputs": { "connected": "bool" },
+        "description": "Establishes OPC UA connection with the target module."
+      },
+      {
+        "name": "ReadCapabilityDescriptionSM",
+        "inputs": { "agentId": "string" },
+        "outputs": { "capabilitySM": "object" },
+        "description": "Reads the CapabilityDescription submodel from the administration shell of the agent."
+      },
+      {
+        "name": "ReadNameplateSM",
+        "inputs": { "agentId": "string" },
+        "outputs": { "nameplate": "object" },
+        "description": "Reads machine or product metadata (model, manufacturer, ID)."
+      },
+      {
+        "name": "ReadSkillsSM",
+        "inputs": { "agentId": "string" },
+        "outputs": { "skills": "object" },
+        "description": "Loads the list of available skills defined in the AAS."
+      },
+      {
+        "name": "ReadMachineSchedule",
+        "inputs": { "agentId": "string" },
+        "outputs": { "schedule": "object" },
+        "description": "Reads the ActualSchedule and InitialSchedule from the machine’s schedule submodel."
+      },
+      {
+        "name": "ReadShell",
+        "inputs": { "agentId": "string" },
+        "outputs": { "shell": "object" },
+        "description": "Loads the entire AAS for initialization or re-synchronization."
+      },
+      {
+        "name": "CoupleModule",
+        "inputs": { "moduleId": "string" },
+        "outputs": { "coupled": "bool" },
+        "description": "Registers the module at runtime in multi-module systems to enable neighbor-awareness."
+      },
+      {
+        "name": "ConnectToMessagingBroker",
+        "inputs": { "endpoint": "string", "protocol": Protocol_enum.MQTT },
+        "outputs": { "connected": "bool" },
+        "description": "Establishes OPC UA connection with the target module."
+      }
+    ],
+
+    "LockingNodes": [
+      {
+        "name": "LockResource",
+        "inputs": { "resourceId": "string" },
+        "outputs": { "locked": "bool" },
+        "description": "Sets /State/isLocked = true for mutual exclusion. Prevents other agents from using a resource during critical planning or execution phases."
+      },
+      {
+        "name": "UnlockResource",
+        "inputs": { "resourceId": "string" },
+        "outputs": { "unlocked": "bool" },
+        "description": "Unlocks resource by setting /State/isLocked = false."
+      },
+      {
+        "name": "WaitUntilUnlocked",
+        "inputs": { "resourceId": "string", "timeout": "int" },
+        "outputs": { "released": "bool" },
+        "description": "Repeatedly checks lock state until resource becomes free or timeout occurs."
+      },
+      {
+        "name": "CheckLockOwner",
+        "inputs": { "resourceId": "string" },
+        "outputs": { "ownerId": "string" },
+        "description": "Reads which agent currently owns the lock, helping to resolve lock conflicts."
+      }
+    ],
+
+    "EventNodes": [
+      {
+        "name": "OnNodeChanged",
+        "inputs": { "opcNode": "string", "callback": "function" },
+        "outputs": { "subscribed": "bool" },
+        "description": "Subscribes to OPC UA node changes and triggers callback when value changes."
+      },
+      {
+        "name": "EventSelector",
+        "inputs": { "opcNodeCallbacks": "array" },
+        "outputs": { "index": "int" },
+        "description": "Waits for multiple possible events and returns index of first event that fires."
+      },
+      {
+        "name": "OnSkillStateChanged",
+        "inputs": { "skillName": "string", "state": "string" },
+        "outputs": { "triggered": "bool" },
+        "description": "Triggers BT branch whenever skill’s state changes to target state."
+      },
+      {
+        "name": "OnInventoryChanged",
+        "inputs": { "itemId": "string" },
+        "outputs": { "triggered": "bool" },
+        "description": "Fires when inventory content related to itemId changes."
+      },
+      {
+        "name": "OnNeighborChanged",
+        "inputs": { "moduleId": "string" },
+        "outputs": { "triggered": "bool" },
+        "description": "Triggers when neighbor availability or connection changes."
+      }
+    ],
+
+    "MessagingNodes": [
+      {
+        "name": "SendMessage",
+        "inputs": { "agentId": "string", "payload": "object" },
+        "outputs": { "sent": "bool" },
+        "description": "Sends a generic message to another agent over MQTT or internal bus."
+      },
+      {
+        "name": "WaitForMessage",
+        "inputs": { "type": "string", "timeout": "int" },
+        "outputs": { "message": "object/null" },
+        "description": "Waits until a message of specified type arrives or timeout occurs."
+      },
+      {
+        "name": "ReadMqttSkillRequest",
+        "inputs": {},
+        "outputs": { "skillRequest": "object" },
+        "description": "Reads pending skill requests for execution agents from MQTT topics."
+      },
+      {
+        "name": "ReceiveOfferMessage",
+        "inputs": { "requiredCapability": "object" },
+        "outputs": { "offers": "object" },
+        "description": "Collects incoming offers from resources during bidding and updates internal decision structures."
+      }
+    ],
+
+    "ProductNodes": [
+      {
+        "name": "InitProductHolon",
+        "inputs": { "aasId": "string" },
+        "outputs": { "initialized": "bool" },
+        "description": "Loads product identification, BOM, configuration and scenario. Sets up initial state for execution of production plan or process chain."
+      },
+      {
+        "name": "LoadRequiredCapabilities",
+        "inputs": { "aasId": "string" },
+        "outputs": { "requiredCapabilities": "object" },
+        "description": "Reads required capabilities from product’s process chain or production definition."
+      },
+      {
+        "name": "LoadBillOfMaterial",
+        "inputs": { "aasId": "string" },
+        "outputs": { "bom": "object" },
+        "description": "Extracts child product structures required for assembly from the AAS model."
+      },
+      {
+        "name": "SpawnChildHolons",
+        "inputs": { "aasId": "string" },
+        "outputs": { "spawnedChildren": "array" },
+        "description": "Creates dynamic child holons for sub-products or assemblies."
+      },
+      {
+        "name": "WaitForChildPlanInitialization",
+        "inputs": { "aasId": "string" },
+        "outputs": { "ready": "bool" },
+        "description": "Blocks execution until all child product holons have generated their production plans."
+      },
+      {
+        "name": "MonitorProductHolonState",
+        "inputs": { "intervalMs": "int" },
+        "outputs": { "state": "object" },
+        "description": "Periodically inspects product holon states (child states, plan progress, execution scenario)."
+      },
+      {
+        "name": "CheckChildHolonAlive",
+        "inputs": { "childId": "string" },
+        "outputs": { "alive": "bool" },
+        "description": "Checks if child holon is still active in runtime environment."
+      },
+      {
+        "name": "RestartFailedChild",
+        "inputs": { "childId": "string" },
+        "outputs": { "restarted": "bool" },
+        "description": "Implements retry and spawn logic to recover child holons that failed to initialize."
+      },
+      {
+        "name": "IsExecutionAllowed",
+        "inputs": {},
+        "outputs": { "allowed": "bool" },
+        "description": "Evaluates whether product holon can execute next plan step: requires no active child agents and all child plans available."
+      },
+      {
+        "name": "TerminateProductHolon",
+        "inputs": { "reason": "string" },
+        "outputs": { "terminated": "bool" },
+        "description": "Terminates holon and propagates completion or error status to parent or supervising agents."
+      },
+      {
+        "name": "FetchNextProductionStep",
+        "inputs": { "productionPlan": "object" },
+        "outputs": { "step": "object/null" },
+        "description": "Selects next relevant step from production plan. In extended planning, may fetch a set of steps within scheduling horizon."
+      },
+      {
+        "name": "AskForStepExecution",
+        "inputs": { "step": "object" },
+        "outputs": { "requestSent": "bool" },
+        "description": "Asks resource holons to execute the selected production step."
+      },
+      {
+        "name": "AskForStepsExecution",
+        "inputs": { "steps": "array" },
+        "outputs": { "requestsSent": "bool" },
+        "description": "Requests execution of multiple future steps at once to increase scheduling stability."
+      },
+      {
+        "name": "AskForStepSchedulingAndExecution",
+        "inputs": { "step": "object" },
+        "outputs": { "scheduled": "bool" },
+        "description": "Requests scheduling and execution in one combined interaction. Useful for tightly coupled production processes."
+      },
+      {
+        "name": "AskForStepsSchedulingAndExecution",
+        "inputs": { "steps": "array" },
+        "outputs": { "scheduled": "bool" },
+        "description": "Schedules a sequence of steps together to ensure feasible multi-step execution."
+      },
+      {
+        "name": "HandleCompletedStep",
+        "inputs": { "step": "object" },
+        "outputs": { "processed": "bool" },
+        "description": "Updates production plan after a step completed successfully."
+      },
+      {
+        "name": "HandleAbortedStep",
+        "inputs": { "step": "object" },
+        "outputs": { "recoveryStarted": "bool" },
+        "description": "Triggers re-planning or termination logic after a step abort."
+      },
+      {
+        "name": "UpdateStepState",
+        "inputs": { "step": "object" },
+        "outputs": { "updated": "bool" },
+        "description": "Updates internal production plan state based on execution feedback."
+      },
+      {
+        "name": "FinishPlan",
+        "inputs": { "productionPlan": "object" },
+        "outputs": { "finished": "bool" },
+        "description": "Marks the production plan as completed (final reporting and cleanup)."
+      },
+      {
+        "name": "KillAfterPlanCompletion",
+        "inputs": {},
+        "outputs": { "killed": "bool" },
+        "description": "Shuts down holon after finalizing all work and reporting completion."
+      }
+    ]
+  }
+}

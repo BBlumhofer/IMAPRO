@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<BehaviorTree>
+  <Root name="ModuleInitialization">
+    <Sequence name="InitializationSequence">
+      
+      <!-- Status: Starte Initialisierung -->
+      <SendMessage 
+        name="SendStartStatus"
+        AgentId="broadcast"
+        MessageType="StatusUpdate"
+        Payload="Starting module initialization" />
+      
+      <!-- Schritt 1: OPC UA Verbindung mit Retry-Loop (alle 3s) -->
+      <RetryUntilSuccess name="ConnectRetryLoop" numAttempts="-1" delayMs="3000">
+        <Sequence name="ConnectSequence">
+          <SendMessage 
+            name="SendConnectAttempt"
+            AgentId="broadcast"
+            MessageType="StatusUpdate"
+            Payload="Attempting OPC UA connection..." />
+          
+          <ConnectToModule 
+            name="ConnectOPC"
+            Endpoint="{config.OPCUA.Endpoint}"
+            TimeoutMs="30000" />
+          
+          <SendMessage 
+            name="SendConnected"
+            AgentId="broadcast"
+            MessageType="StatusUpdate"
+            Payload="OPC UA connected successfully" />
+        </Sequence>
+      </RetryUntilSuccess>
+      
+      <!-- Schritt 2: Modul locken -->
+      <Sequence name="LockSequence">
+        <SendMessage 
+          name="SendLockAttempt"
+          AgentId="broadcast"
+          MessageType="StatusUpdate"
+          Payload="Locking module..." />
+        
+        <LockResource 
+          name="LockModule"
+          ModuleName="ScrewingStation"
+          ResourceId="{config.Agent.ModuleId}" />
+        
+        <SendMessage 
+          name="SendLocked"
+          AgentId="broadcast"
+          MessageType="StatusUpdate"
+          Payload="Module locked successfully" />
+      </Sequence>
+      
+      <!-- Schritt 3: Prüfen ob gecouplet, falls nein -> couple -->
+      <Sequence name="CoupleCheckSequence">
+        <SendMessage 
+          name="SendCoupleCheck"
+          AgentId="broadcast"
+          MessageType="StatusUpdate"
+          Payload="Checking coupling state..." />
+        
+        <Fallback name="EnsureCoupled">
+          <!-- Prüfe ob bereits gecouplet -->
+          <Condition name="CheckAlreadyCoupled">
+            <BlackboardCondition key="Module_{config.Agent.ModuleId}_Coupled" expectedValue="true" />
+          </Condition>
+          
+          <!-- Falls nicht, couple das Modul -->
+          <Sequence name="PerformCoupling">
+            <SendMessage 
+              name="SendCouplingStart"
+              AgentId="broadcast"
+              MessageType="StatusUpdate"
+              Payload="Coupling module..." />
+            
+            <CoupleModule 
+              name="CoupleNow"
+              ModuleId="{config.Agent.ModuleId}" />
+            
+            <SendMessage 
+              name="SendCoupled"
+              AgentId="broadcast"
+              MessageType="StatusUpdate"
+              Payload="Module coupled successfully" />
+          </Sequence>
+        </Fallback>
+      </Sequence>
+      
+      <!-- Schritt 4: StartupSkill ausführen -->
+      <Sequence name="StartupSequence">
+        <SendMessage 
+          name="SendStartupBegin"
+          AgentId="broadcast"
+          MessageType="StatusUpdate"
+          Payload="Executing StartupSkill..." />
+        
+        <ExecuteSkill 
+          name="ExecuteStartup"
+          ModuleName="ScrewingStation"
+          SkillName="StartupSkill" />
+        
+        <SendMessage 
+          name="SendStartupComplete"
+          AgentId="broadcast"
+          MessageType="StatusUpdate"
+          Payload="StartupSkill completed successfully" />
+      </Sequence>
+      
+      <!-- Finale Status-Nachricht -->
+      <SendMessage 
+        name="SendInitComplete"
+        AgentId="broadcast"
+        MessageType="StatusUpdate"
+        Payload="Module initialization completed" />
+      
+    </Sequence>
+  </Root>
+</BehaviorTree>
