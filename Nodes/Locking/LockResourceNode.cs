@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Logging;
 using MAS_BT.Core;
+using Microsoft.Extensions.Logging;
 using UAClient.Client;
 
 namespace MAS_BT.Nodes.Locking;
@@ -34,6 +34,15 @@ public class LockResourceNode : BTNode
                 return NodeStatus.Failure;
             }
 
+            // Hole UaClient Session
+            var client = Context.Get<UaClient>("UaClient");
+            if (client?.Session == null)
+            {
+                Logger.LogError("LockResource: No UaClient Session available");
+                Set("locked", false);
+                return NodeStatus.Failure;
+            }
+
             // Finde Modul
             RemoteModule? module = null;
             if (!string.IsNullOrEmpty(ModuleName))
@@ -62,21 +71,11 @@ public class LockResourceNode : BTNode
             // Lock das Modul via OPC UA
             Logger.LogInformation("LockResource: Calling module.LockAsync() for {ModuleName}...", module.Name);
             
-            // Hole Session vom UaClient
-            var client = Context.Get<UaClient>("UaClient");
-            if (client?.Session == null)
-            {
-                Logger.LogError("LockResource: No UaClient Session available");
-                Set("locked", false);
-                return NodeStatus.Failure;
-            }
-            
             var lockResult = await module.LockAsync(client.Session);
             
             if (lockResult.HasValue && lockResult.Value)
             {
-                Logger.LogInformation("LockResource: Successfully locked {ModuleName} by {AgentId}", 
-                    module.Name, Context.AgentId);
+                Logger.LogInformation("LockResource: Lock call succeeded for {ModuleName}", module.Name);
                 
                 // Speichere Lock-Status im Context
                 Context.Set($"State_{ResourceId}_IsLocked", true);

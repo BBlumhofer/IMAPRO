@@ -1,5 +1,6 @@
 using MAS_BT.Core;
 using MAS_BT.Nodes.Configuration;
+using MAS_BT.Nodes.Messaging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 
@@ -47,7 +48,10 @@ public class ResourceHolonInitialization
             
             var connectToBrokerNode = new ConnectToMessagingBrokerNode
             {
-                Endpoint = "localhost"
+                BrokerHost = "localhost",
+                BrokerPort = 1883,
+                DefaultTopic = "factory/agents/messages",
+                TimeoutMs = 10000
             };
             connectToBrokerNode.Initialize(context, loggerFactory.CreateLogger("ConnectToMessagingBroker"));
             

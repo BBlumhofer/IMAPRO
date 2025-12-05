@@ -4,7 +4,9 @@ using MAS_BT.Core;
 using MAS_BT.Nodes.Configuration;
 using MAS_BT.Nodes.Locking;
 using MAS_BT.Nodes.Messaging;
+using MAS_BT.Nodes.Monitoring;
 using MAS_BT.Nodes.Skills;
+using MAS_BT.Nodes.Core;
 
 namespace MAS_BT.Serialization;
 
@@ -91,6 +93,10 @@ public class NodeRegistry
         Register<SucceederNode>();
         Register<RetryUntilSuccessNode>();
         
+        // Core Utility Nodes
+        Register<WaitNode>();
+        Register<SetBlackboardValueNode>();
+        
         // Condition Nodes
         Register<ConditionNode>();
         Register<BlackboardConditionNode>();
@@ -110,10 +116,16 @@ public class NodeRegistry
         // Locking Nodes
         Register<LockResourceNode>("LockResource");
         Register<UnlockResourceNode>("UnlockResource");
+        Register<CheckLockStatusNode>();
         
         // Messaging Nodes
         Register<SendMessageNode>();
+        Register<SendLogMessageNode>();
+        Register<SendConfigAsLogNode>();
         Register<WaitForMessageNode>();
+        
+        // Monitoring Nodes
+        Register<ReadStorageNode>();
         
         // Skill Nodes
         Register<ExecuteSkillNode>();
