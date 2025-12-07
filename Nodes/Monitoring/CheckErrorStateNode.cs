@@ -22,7 +22,7 @@ public class CheckErrorStateNode : BTNode
         // Resolve Placeholders zur Laufzeit (z.B. {MachineName} → "ScrewingStation")
         var resolvedModuleName = ResolvePlaceholders(ModuleName);
         
-        Logger.LogInformation("CheckErrorState: Checking error state of module {ModuleName}", resolvedModuleName);
+        Logger.LogDebug("CheckErrorState: Checking error state of module {ModuleName}", resolvedModuleName);
 
         try
         {
@@ -40,14 +40,15 @@ public class CheckErrorStateNode : BTNode
             }
 
             bool hasError = false;
+            var haltedSkills = new List<string>();
 
             // Prüfe alle Skills auf Halted State
             foreach (var skill in module.SkillSet.Values)
             {
                 if (skill.CurrentState == UAClient.Common.SkillStates.Halted)
                 {
-                    Logger.LogWarning("CheckErrorState: Skill {SkillName} is in Halted state", skill.Name);
                     hasError = true;
+                    haltedSkills.Add(skill.Name);
                 }
             }
 
@@ -56,7 +57,9 @@ public class CheckErrorStateNode : BTNode
 
             if (hasError)
             {
-                Logger.LogError("CheckErrorState: Errors detected in module {ModuleName}", resolvedModuleName);
+                var skillList = string.Join(", ", haltedSkills);
+                Logger.LogError("CheckErrorState: Errors detected in module {ModuleName}. Halted skills: {Skills}", 
+                    resolvedModuleName, string.IsNullOrEmpty(skillList) ? "unknown" : skillList);
             }
 
             return !hasError ? NodeStatus.Success : NodeStatus.Failure;

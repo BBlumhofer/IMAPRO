@@ -4,6 +4,7 @@ using I40Sharp.Messaging;
 using I40Sharp.Messaging.Core;
 using I40Sharp.Messaging.Models;
 using AasSharpClient.Models;
+using AasSharpClient.Models.Messages;
 
 namespace MAS_BT.Nodes.Messaging;
 
@@ -86,8 +87,8 @@ public class SendSkillResponseNode : BTNode
                 var logMessage = Context.Get<string>("LogMessage") ?? Context.Get<string>("ErrorMessage");
                 if (!string.IsNullOrEmpty(logMessage))
                 {
-                    var logProp = I40MessageBuilder.CreateStringProperty("LogMessage", logMessage);
-                    messageBuilder.AddElement(logProp);
+                    var logElement = BuildResponseLog(FrameType, logMessage, ModuleId);
+                    messageBuilder.AddElement(logElement);
                     Logger.LogInformation("SendSkillResponse: Including LogMessage: {LogMessage}", logMessage);
                 }
             }
@@ -142,5 +143,18 @@ public class SendSkillResponseNode : BTNode
     public override Task OnReset()
     {
         return Task.CompletedTask;
+    }
+
+    private static LogMessage BuildResponseLog(string frameType, string message, string moduleId)
+    {
+        var level = frameType switch
+        {
+            I40MessageTypes.FAILURE => LogMessage.LogLevel.Error,
+            I40MessageTypes.REFUSAL => LogMessage.LogLevel.Warn,
+            _ => LogMessage.LogLevel.Info
+        };
+
+        var agentState = string.IsNullOrWhiteSpace(moduleId) ? "" : moduleId;
+        return new LogMessage(level, message, "ExecutionAgent", agentState);
     }
 }

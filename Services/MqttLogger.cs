@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using I40Sharp.Messaging;
 using I40Sharp.Messaging.Core;
 using I40Sharp.Messaging.Models;
-using BaSyx.Models.AdminShell;
+using AasSharpClient.Models.Messages;
 using MAS_BT.Core;
 
 namespace MAS_BT.Services;
@@ -105,44 +105,21 @@ public class MqttLogger : ILogger
     
     private I40Message CreateI40LogMessage(LogLevel logLevel, string message)
     {
-        var logLevelProp = CreateProperty("LogLevel", GetLogLevelName(logLevel));
-        var messageProp = CreateProperty("Message", message);
-        var timestampProp = CreateProperty("Timestamp", DateTime.UtcNow.ToString("o"));
-        var agentRoleProp = CreateProperty("AgentRole", _agentRole);
+        var logCollection = new LogMessage(
+            GetLogLevelName(logLevel),
+            message,
+            _agentRole,
+            _agentId);
 
-        return new I40Message
-        {
-            Frame = new MessageFrame
-            {
-                Sender = new Participant
-                {
-                    Identification = new Identification { Id = _agentId },
-                    Role = new Role { Name = _agentRole }
-                },
-                Receiver = new Participant
-                {
-                    Identification = new Identification { Id = "broadcast" },
-                    Role = new Role { Name = "" }
-                },
-                Type = "inform",
-                ConversationId = Guid.NewGuid().ToString(),
-                MessageId = Guid.NewGuid().ToString()
-            },
-            InteractionElements = new List<ISubmodelElement>
-            {
-                logLevelProp,
-                messageProp,
-                timestampProp,
-                agentRoleProp
-            }.Cast<SubmodelElement>().ToList()
-        };
-    }
-    
-    private static ISubmodelElement CreateProperty(string idShort, string value)
-    {
-        var prop = new Property<string>(idShort);
-        prop.Value = new PropertyValue<string>(value);
-        return prop;
+        var builder = new I40MessageBuilder()
+            .From(_agentId, _agentRole)
+            .To("broadcast", string.Empty)
+            .WithType(I40MessageTypes.INFORM)
+            .WithConversationId(Guid.NewGuid().ToString())
+            .WithMessageId(Guid.NewGuid().ToString())
+            .AddElement(logCollection);
+
+        return builder.Build();
     }
     
     private static string GetLogLevelString(LogLevel logLevel)

@@ -320,6 +320,12 @@
         "description": "Registers the module at runtime in multi-module systems to enable neighbor-awareness."
       },
       {
+        "name": "EnsurePortsCoupled",
+        "inputs": { "moduleName": "string", "timeoutSeconds": "int" },
+        "outputs": { "portsCoupled": "bool" },
+        "description": "Scans every port for a CoupleSkill and starts it so the port reaches Running before startup."
+      },
+      {
         "name": "ConnectToMessagingBroker",
         "inputs": { "endpoint": "string", "protocol": Protocol_enum.MQTT },
         "outputs": { "connected": "bool" },

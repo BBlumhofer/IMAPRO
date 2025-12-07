@@ -5,28 +5,28 @@
       
       <!-- Setup: Connect and Lock -->
       <Sequence name="Setup">
-        <ConnectToModule name="Connect" ModuleName="ScrewingStation" />
-        <LockResource name="Lock" ModuleName="ScrewingStation" />
-        <CheckLockedState name="VerifyLocked" ModuleName="ScrewingStation" ExpectLocked="true" />
+        <ConnectToModule name="Connect" ModuleName="{config.Agent.ModuleId}" />
+        <LockResource name="Lock" ModuleName="{config.Agent.ModuleId}" />
+        <CheckLockedState name="VerifyLocked" ModuleName="{config.Agent.ModuleId}" ExpectLocked="true" />
       </Sequence>
 
       <!-- Test 1: Check Ready State -->
       <Sequence name="TestReadyState">
-        <CheckReadyState name="IsReady" ModuleName="ScrewingStation" />
+        <CheckReadyState name="IsReady" ModuleName="{config.Agent.ModuleId}" />
       </Sequence>
 
       <!-- Test 2: Start Skill and Wait for Running -->
       <Sequence name="StartSkillTest">
-        <ExecuteSkill 
+          <ExecuteSkill 
           name="StartScrew" 
           SkillName="Screw" 
-          ModuleName="ScrewingStation"
+          ModuleName="{config.Agent.ModuleId}"
           Parameters="ProductId=TestProduct"
           WaitForCompletion="false" />
         
-        <WaitForSkillState 
+          <WaitForSkillState 
           name="WaitRunning" 
-          ModuleName="ScrewingStation"
+          ModuleName="{config.Agent.ModuleId}"
           SkillName="Screw"
           TargetState="Running"
           TimeoutSeconds="10" />
@@ -38,13 +38,13 @@
         
         <PauseSkill 
           name="PauseScrew" 
-          ModuleName="ScrewingStation"
+          ModuleName="{config.Agent.ModuleId}"
           SkillName="Screw"
           TimeoutSeconds="10" />
         
-        <MonitoringSkill 
+          <MonitoringSkill 
           name="CheckPausedState" 
-          ModuleName="ScrewingStation"
+          ModuleName="{config.Agent.ModuleId}"
           SkillName="Screw" />
       </Sequence>
 
@@ -54,13 +54,13 @@
         
         <ResumeSkill 
           name="ResumeScrew" 
-          ModuleName="ScrewingStation"
+          ModuleName="{config.Agent.ModuleId}"
           SkillName="Screw"
           TimeoutSeconds="10" />
         
-        <WaitForSkillState 
+          <WaitForSkillState 
           name="WaitResumed" 
-          ModuleName="ScrewingStation"
+          ModuleName="{config.Agent.ModuleId}"
           SkillName="Screw"
           TargetState="Running"
           TimeoutSeconds="10" />
@@ -72,20 +72,20 @@
         
         <AbortSkill 
           name="AbortScrew" 
-          ModuleName="ScrewingStation"
+          ModuleName="{config.Agent.ModuleId}"
           SkillName="Screw"
           WaitForHalted="true"
           TimeoutSeconds="10" />
         
         <CheckErrorState 
           name="CheckNoErrors" 
-          ModuleName="ScrewingStation" />
+          ModuleName="{config.Agent.ModuleId}" />
       </Sequence>
 
       <!-- Cleanup -->
       <Sequence name="Cleanup">
-        <UnlockResource name="Unlock" ModuleName="ScrewingStation" />
-        <CheckLockedState name="VerifyUnlocked" ModuleName="ScrewingStation" ExpectLocked="false" />
+        <UnlockResource name="Unlock" ModuleName="{config.Agent.ModuleId}" />
+        <CheckLockedState name="VerifyUnlocked" ModuleName="{config.Agent.ModuleId}" ExpectLocked="false" />
       </Sequence>
 
     </Sequence>

@@ -5,6 +5,7 @@ using I40Sharp.Messaging.Models;
 using BaSyx.Models.AdminShell;
 using System.Collections.Concurrent;
 using System.Text.Json;
+using AasSharpClient.Models;
 
 namespace MAS_BT.Nodes.Messaging;
 
@@ -144,7 +145,7 @@ public class ReadMqttSkillRequestNode : BTNode
                 Context.Set("RequestSender", senderId);
                 
                 // Extrahiere InputParameters
-                var inputParams = new Dictionary<string, string>();
+                var inputParams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var prop in actionValue.EnumerateArray())
                 {
                     if (prop.TryGetProperty("idShort", out var propIdShort) && 
@@ -167,6 +168,11 @@ public class ReadMqttSkillRequestNode : BTNode
                 
                 Context.Set("InputParameters", inputParams);
                 Logger.LogInformation("ReadMqttSkillRequest: Extracted {Count} input parameters", inputParams.Count);
+
+                var actionIdShort = actionElement.Value.GetProperty("idShort").GetString() ?? "Action001";
+                var aasAction = BuildAasAction(actionIdShort, actionTitle, status, machineName, inputParams);
+                Context.Set("CurrentAction", aasAction);
+                Context.Set("ActionId", actionIdShort);
                 
                 return NodeStatus.Success;
             }
@@ -195,6 +201,33 @@ public class ReadMqttSkillRequestNode : BTNode
             }
         }
         return "";
+    }
+
+    private static AasSharpClient.Models.Action BuildAasAction(
+        string actionId,
+        string actionTitle,
+        string status,
+        string machineName,
+        IDictionary<string, string> inputParameters)
+    {
+        var mappedStatus = MapActionStatus(status);
+        var inputModel = new InputParameters(inputParameters);
+        var finalResult = new FinalResultData();
+        return new AasSharpClient.Models.Action(actionId, actionTitle, mappedStatus, inputModel, finalResult, null, machineName);
+    }
+
+    private static ActionStatusEnum MapActionStatus(string status)
+    {
+        return status?.ToLowerInvariant() switch
+        {
+            "planned" => ActionStatusEnum.PLANNED,
+            "executing" => ActionStatusEnum.EXECUTING,
+            "suspended" => ActionStatusEnum.SUSPENDED,
+            "done" => ActionStatusEnum.DONE,
+            "aborted" => ActionStatusEnum.ABORTED,
+            "error" => ActionStatusEnum.ERROR,
+            _ => ActionStatusEnum.OPEN
+        };
     }
     
     public override async Task OnAbort()

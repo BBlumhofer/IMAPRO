@@ -26,23 +26,39 @@
       
       <!-- ==================== SCHRITT 4: INITIAL LOCK + STARTUP ==================== -->
       <Sequence name="InitialLockAndStartup">
-        <EnsureModuleLocked 
+        <LockResource
           name="InitialLock"
-          ModuleName="ScrewingStation"
+          ModuleName="{config.Agent.ModuleId}"
           ResourceId="{config.Agent.ModuleId}"
-          MaxRetries="3"
-          RetryDelayMs="2000" />
-        
-        <EnsureStartupRunning 
-          name="InitialStartup"
-          ModuleName="ScrewingStation"
-          TimeoutSeconds="60" />
+          TimeoutSeconds="30" />
+
+        <CheckLockedState
+          name="VerifyInitialLock"
+          ModuleName="{config.Agent.ModuleId}"
+          ExpectLocked="true" />
+
+        <ExecuteSkill
+          name="ExecuteStartup"
+          ModuleName="{config.Agent.ModuleId}"
+          SkillName="Startup"
+          WaitForCompletion="false"
+          TimeoutSeconds="60"
+          ResetBeforeIfHalted="true" />
+
+        <WaitForSkillState
+          name="WaitForStartupRunning"
+          ModuleName="{config.Agent.ModuleId}"
+          SkillName="Startup"
+          TargetState="Running"
+          TimeoutSeconds="60"
+          PollIntervalMs="500"
+          SendErrorOnTimeout="true" />
       </Sequence>
       
       <!-- ==================== SCHRITT 5: STORAGE AUSLESEN ==================== -->
       <ReadStorage 
         name="ReadModuleStorage"
-        ModuleName="ScrewingStation" />
+        ModuleName="{config.Agent.ModuleId}" />
       
       <!-- ==================== SCHRITT 6: SCREW SKILL MIT PARALLEL MONITORING ==================== -->
       <Parallel name="ExecuteScrewWithMonitoring" policy="ParallelAll">
@@ -51,15 +67,15 @@
         <Sequence name="MainExecutionBranch">
           <ExecuteSkill 
             name="ExecuteScrew"
-            ModuleName="ScrewingStation"
-            SkillName="Screw"
+            ModuleName="{config.Agent.ModuleId}"
+            SkillName="Store"
             Parameters="ProductId=HelloWorld"
             TimeoutSeconds="120"
             ResetBeforeIfHalted="true" />
         </Sequence>
         
         <!-- Continuous Health Monitor Branch -->
-        <RepeatUntilFailure name="ContinuousHealthMonitor">
+        <Repeat name="ContinuousHealthMonitor" numCycles="-1">
           <Sequence name="HealthCheckCycle">
             
             <!-- Health Checks mit Recovery Fallback -->
@@ -69,22 +85,23 @@
               <Sequence name="HealthChecks">
                 <CheckLockStatus 
                   name="CheckLock"
-                  ModuleName="ScrewingStation" />
+                  ModuleName="{config.Agent.ModuleId}" />
                 
                 <CheckStartupSkillStatus 
                   name="CheckStartup"
-                  ModuleName="ScrewingStation" />
+                  ModuleName="{config.Agent.ModuleId}" />
                 
                 <CheckErrorState 
                   name="CheckErrors"
-                  ModuleName="ScrewingStation" />
+                  ModuleName="{config.Agent.ModuleId}" />
               </Sequence>
               
               <!-- If Health Check Failed → Trigger Recovery -->
-              <RecoverySequence 
-                name="AutoRecovery"
-                ModuleName="ScrewingStation"
-                ResourceId="{config.Agent.ModuleId}" />
+                <Sequence name="AutoRecovery">
+                <UnlockResource name="AutoUnlock" ModuleName="{config.Agent.ModuleId}" ResourceId="{config.Agent.ModuleId}" />
+                <Wait name="WaitAfterUnlock" DelayMs="1000" />
+                <LockResource name="AutoRelock" ModuleName="{config.Agent.ModuleId}" ResourceId="{config.Agent.ModuleId}" TimeoutSeconds="10" />
+              </Sequence>
               
             </Fallback>
             
@@ -92,7 +109,7 @@
             <Wait name="WaitBetweenChecks" DelayMs="2000" />
             
           </Sequence>
-        </RepeatUntilFailure>
+        </Repeat>
         
       </Parallel>
       

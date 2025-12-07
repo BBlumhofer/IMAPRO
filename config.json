@@ -1,21 +1,21 @@
 {
   "Agent": {
-    "ModuleId": "Module_Assembly_01",
+    "ModuleId": "CA-Module",
     "AgentId": "TestAgent",
     "Role": "ResourceHolon",
     "AgentType": "ResourceHolon",
     "LogLevel": "Information"
   },
   "OPCUA": {
-    "Endpoint": "opc.tcp://192.168.178.30:4849",
+    "Endpoint": "opc.tcp://172.24.100.85:4892",
     "UseAuth": true,
     "Username": "orchestrator",
+    
     "Password": "orchestrator",
     "SecurityMode": "None",
     "SecurityPolicy": "None",
     "Timeout": 30000,
-    "ReconnectInterval": 3000,
-    "NeighborsNodePath": "/State/Neighbors"
+    "ReconnectInterval": 3000
   },
   "AAS": {
     "SubmodelRepositoryEndpoint": "http://localhost:8080/submodels",
@@ -30,8 +30,8 @@
     }
   },
   "MQTT": {
-    "Broker": "localhost",
-    "BrokerAddress": "localhost",
+    "Broker": "172.24.100.85",
+    "BrokerAddress": "172.24.100.85",
     "Port": 1883,
     "Username": "mqttuser",
     "Password": "mqttpass",
@@ -55,23 +55,6 @@
     "TransportRequestTimeout": 180000,
     "LockAcquisitionTimeout": 10000,
     "OfferCollectionTimeout": 15000
-  },
-  "Neighbors": {
-    "ReadFromOPCUA": true,
-    "NodePath": "/State/Neighbors",
-    "RefreshIntervalMs": 5000,
-    "StaticFallback": [
-      {
-        "ModuleId": "Module_Pickup_01",
-        "Direction": "Input",
-        "ConnectionType": "Conveyor"
-      },
-      {
-        "ModuleId": "Module_Quality_01",
-        "Direction": "Output",
-        "ConnectionType": "Conveyor"
-      }
-    ]
   },
   "TimeSynchronization": {
     "NTPServer": "time.google.com",

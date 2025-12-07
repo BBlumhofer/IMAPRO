@@ -62,9 +62,31 @@ public class WaitForSkillStateNode : BTNode
 
             if (!module.SkillSet.TryGetValue(resolvedSkillName, out var skill))
             {
-                Logger.LogError("WaitForSkillState: Skill {SkillName} not found in module {ModuleName}", resolvedSkillName, resolvedModuleName);
-                _lastLoggedState = null;
-                return NodeStatus.Failure;
+                Logger.LogWarning("WaitForSkillState: Skill {SkillName} not found in module {ModuleName} (direct lookup)", resolvedSkillName, resolvedModuleName);
+                Logger.LogDebug("WaitForSkillState: Available skills: {Skills}", string.Join(", ", module.SkillSet.Keys));
+
+                // Heuristische Suche: substring match (case-insensitive)
+                var found = module.SkillSet.Values.FirstOrDefault(s => !string.IsNullOrEmpty(s.Name) && s.Name.IndexOf(resolvedSkillName, StringComparison.OrdinalIgnoreCase) >= 0);
+                if (found == null)
+                {
+                    // Try appending 'Skill' suffix or trimming 'Skill' from requested name
+                    var alt1 = resolvedSkillName.EndsWith("Skill", StringComparison.OrdinalIgnoreCase) ? resolvedSkillName : resolvedSkillName + "Skill";
+                    var alt2 = resolvedSkillName.EndsWith("Skill", StringComparison.OrdinalIgnoreCase) ? resolvedSkillName.Substring(0, resolvedSkillName.Length - 5) : null;
+                    if (!string.IsNullOrEmpty(alt1)) found = module.SkillSet.Values.FirstOrDefault(s => s.Name.Equals(alt1, StringComparison.OrdinalIgnoreCase) || s.Name.IndexOf(alt1, StringComparison.OrdinalIgnoreCase) >= 0);
+                    if (found == null && !string.IsNullOrEmpty(alt2)) found = module.SkillSet.Values.FirstOrDefault(s => s.Name.Equals(alt2, StringComparison.OrdinalIgnoreCase) || s.Name.IndexOf(alt2, StringComparison.OrdinalIgnoreCase) >= 0);
+                }
+
+                if (found != null)
+                {
+                    Logger.LogWarning("WaitForSkillState: Heuristic matched requested skill '{Requested}' to actual skill '{Actual}'", resolvedSkillName, found.Name);
+                    skill = found;
+                }
+                else
+                {
+                    Logger.LogError("WaitForSkillState: Skill {SkillName} not found in module {ModuleName} after heuristics", resolvedSkillName, resolvedModuleName);
+                    _lastLoggedState = null;
+                    return NodeStatus.Failure;
+                }
             }
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();

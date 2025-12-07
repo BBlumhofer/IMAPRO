@@ -4,6 +4,8 @@ using I40Sharp.Messaging;
 using I40Sharp.Messaging.Core;
 using I40Sharp.Messaging.Models;
 using BaSyx.Models.AdminShell;
+using AasSharpClient.Models.Messages;
+using AasSharpClient.Models;
 
 namespace MAS_BT.Nodes.Messaging;
 
@@ -48,20 +50,60 @@ public class SendLogMessageNode : BTNode
                 .To("Broadcast", "System")
                 .WithType(I40MessageTypes.INFORM);
             
-            // Füge Log-Properties mit VALUES hinzu
-            var logLevelProp = I40MessageBuilder.CreateStringProperty("LogLevel", LogLevel);
-            messageBuilder.AddElement(logLevelProp);
-            
-            var messageProp = I40MessageBuilder.CreateStringProperty("Message", Message);
-            messageBuilder.AddElement(messageProp);
-            
-            var timestampProp = I40MessageBuilder.CreateStringProperty("Timestamp", DateTime.UtcNow.ToString("o"));
-            messageBuilder.AddElement(timestampProp);
-            
-            var moduleProp = I40MessageBuilder.CreateStringProperty("ModuleId", moduleId);
-            messageBuilder.AddElement(moduleProp);
+            // Bereite Rohwerte als Strings vor und logge sie (vor Erzeugung der AAS-Properties)
+            var rawLogLevel = string.IsNullOrWhiteSpace(LogLevel) ? "INFO" : LogLevel;
+            var rawMessage = Message ?? string.Empty;
+            var rawAgentRole = "ExecutionAgent";
+            var rawAgentState = moduleId ?? string.Empty;
+
+            Logger.LogInformation("SendLogMessage: Raw values before AAS creation -> LogLevel='{LogLevel}', Message='{Message}', AgentRole='{AgentRole}', AgentState='{AgentState}'",
+                rawLogLevel, rawMessage, rawAgentRole, rawAgentState);
+
+            // Erstelle die AAS-konforme SubmodelElementCollection (wie im AAS-Sharp-Client)
+            var logCollection = new LogMessage(rawLogLevel, rawMessage, rawAgentRole, rawAgentState);
+            messageBuilder.AddElement(logCollection);
 
             var logMessage = messageBuilder.Build();
+
+            // DEBUG: Logge die Property-Values und die serialisierte Nachricht vor dem Senden
+            try
+            {
+                // Einzelne Property-Werte prüfen
+                Logger.LogInformation("SendLogMessage: Prepared properties:");
+                var collection = logMessage.InteractionElements.OfType<SubmodelElementCollection>().FirstOrDefault(e => e.IdShort == "Log");
+                if (collection != null)
+                {
+                    foreach (var elem in collection.Value.Value.OfType<IProperty>())
+                    {
+                        var val = elem.Value?.Value?.ToObject<string>();
+                        Logger.LogInformation("  - {IdShort}: {Value}", elem.IdShort, val);
+                    }
+                }
+                else
+                {
+                    Logger.LogWarning("SendLogMessage: Log collection not found after message build");
+                }
+
+                // Serialisierte Nachricht (JSON) ausgeben
+                try
+                {
+                    var options = new System.Text.Json.JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                        WriteIndented = true
+                    };
+                    options.Converters.Add(new BaSyx.Models.Extensions.FullSubmodelElementConverter(new BaSyx.Models.Extensions.ConverterOptions()));
+                    options.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+
+                    var json = System.Text.Json.JsonSerializer.Serialize(logMessage, options);
+                    Logger.LogInformation("SendLogMessage: Serialized message:\n{Json}", json);
+                }
+                catch (Exception se)
+                {
+                    Logger.LogWarning(se, "SendLogMessage: Failed to serialize message for debug output");
+                }
+            }
+            catch { /* ensure logging never breaks sending */ }
 
             // Sende über angegebenes Topic oder Default-Topic
             var topic = !string.IsNullOrEmpty(Topic) ? Topic : $"/Modules/{moduleId}/Logs/";
@@ -78,12 +120,7 @@ public class SendLogMessageNode : BTNode
         }
     }
     
-    private static ISubmodelElement CreateProperty(string idShort, string value)
-    {
-        var prop = new Property<string>(idShort);
-        prop.Value = new PropertyValue<string>(value);
-        return prop;
-    }
+    // Message construction is done via AAS-Sharp-Client message factories.
     
     private static string GetLogLevelName(Microsoft.Extensions.Logging.LogLevel logLevel)
     {

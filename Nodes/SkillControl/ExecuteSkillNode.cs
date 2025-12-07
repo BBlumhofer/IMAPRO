@@ -31,7 +31,7 @@ public class ExecuteSkillNode : BTNode
         var resolvedSkillName = ResolvePlaceholders(SkillName);
         var resolvedParameters = ResolvePlaceholders(Parameters);
         
-        Logger.LogInformation("ExecuteSkill: Executing {SkillName} on module {ModuleName}", resolvedSkillName, resolvedModuleName);
+        Logger.LogDebug("ExecuteSkill: Executing {SkillName} on module {ModuleName}", resolvedSkillName, resolvedModuleName);
 
         try
         {
@@ -78,16 +78,37 @@ public class ExecuteSkillNode : BTNode
                 // Versuche trotzdem fortzufahren - OPC UA Server könnte Lock anders behandeln
             }
 
-            // Finde Skill
+            // Finde Skill (direkter Lookup, dann heuristische Fallbacks)
             if (!module.SkillSet.TryGetValue(resolvedSkillName, out var skill))
             {
-                Logger.LogError("ExecuteSkill: Skill {SkillName} not found on module {ModuleName}", resolvedSkillName, module.Name);
-                Logger.LogDebug("Available skills: {Skills}", string.Join(", ", module.SkillSet.Keys));
-                Set("started", false);
-                return NodeStatus.Failure;
+                Logger.LogWarning("ExecuteSkill: Skill {SkillName} not found on module {ModuleName} (direct lookup)", resolvedSkillName, module.Name);
+                Logger.LogDebug("ExecuteSkill: Available skills: {Skills}", string.Join(", ", module.SkillSet.Keys));
+
+                // Heuristische Suche: substring match (case-insensitive)
+                var found = module.SkillSet.Values.FirstOrDefault(s => !string.IsNullOrEmpty(s.Name) && s.Name.IndexOf(resolvedSkillName, StringComparison.OrdinalIgnoreCase) >= 0);
+                if (found == null)
+                {
+                    // Try appending 'Skill' suffix or trimming 'Skill' from requested name
+                    var alt1 = resolvedSkillName.EndsWith("Skill", StringComparison.OrdinalIgnoreCase) ? resolvedSkillName : resolvedSkillName + "Skill";
+                    var alt2 = resolvedSkillName.EndsWith("Skill", StringComparison.OrdinalIgnoreCase) ? resolvedSkillName.Substring(0, resolvedSkillName.Length - 5) : null;
+                    if (!string.IsNullOrEmpty(alt1)) found = module.SkillSet.Values.FirstOrDefault(s => s.Name.Equals(alt1, StringComparison.OrdinalIgnoreCase) || s.Name.IndexOf(alt1, StringComparison.OrdinalIgnoreCase) >= 0);
+                    if (found == null && !string.IsNullOrEmpty(alt2)) found = module.SkillSet.Values.FirstOrDefault(s => s.Name.Equals(alt2, StringComparison.OrdinalIgnoreCase) || s.Name.IndexOf(alt2, StringComparison.OrdinalIgnoreCase) >= 0);
+                }
+
+                if (found != null)
+                {
+                    Logger.LogWarning("ExecuteSkill: Heuristic matched requested skill '{Requested}' to actual skill '{Actual}'", resolvedSkillName, found.Name);
+                    skill = found;
+                }
+                else
+                {
+                    Logger.LogError("ExecuteSkill: Skill {SkillName} not found on module {ModuleName} after heuristics", resolvedSkillName, module.Name);
+                    Set("started", false);
+                    return NodeStatus.Failure;
+                }
             }
 
-            Logger.LogInformation("ExecuteSkill: Skill {SkillName} found. Current state: {State}", 
+            Logger.LogDebug("ExecuteSkill: Skill {SkillName} found. Current state: {State}", 
                 resolvedSkillName, skill.CurrentState);
 
             // Parse Parameters oder hole aus Context (InputParameters)
@@ -121,17 +142,34 @@ public class ExecuteSkillNode : BTNode
             }
 
             // Führe Skill aus via RemoteSkill.ExecuteAsync()
-            Logger.LogInformation("ExecuteSkill: Executing skill {SkillName} with {Count} parameters", 
+            Logger.LogDebug("ExecuteSkill: Executing skill {SkillName} with {Count} parameters", 
                 resolvedSkillName, parameters?.Count ?? 0);
             
             var timeout = TimeSpan.FromSeconds(TimeoutSeconds);
             
+            // Adjust reset flags for continuous skills (e.g. Startup)
+            var effectiveResetAfter = ResetAfterCompletion;
+            var effectiveResetBefore = ResetBeforeIfHalted;
+            try
+            {
+                if (skill.CurrentState == SkillStates.Running ||
+                    (!string.IsNullOrEmpty(skill.Name) && skill.Name.IndexOf("Startup", StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    effectiveResetAfter = false;
+                    Logger.LogDebug("ExecuteSkill: Disabling ResetAfterCompletion for continuous skill {SkillName}", skill.Name);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "ExecuteSkill: Could not determine skill properties for reset heuristics");
+            }
+
             // ExecuteAsync gibt FinalResultData als Dictionary zurück
             dynamic resultDataDynamic = await ((dynamic)skill).ExecuteAsync(
                 parameters: parameters,
                 waitForCompletion: WaitForCompletion,
-                resetAfterCompletion: ResetAfterCompletion,
-                resetBeforeIfHalted: ResetBeforeIfHalted,
+                resetAfterCompletion: effectiveResetAfter,
+                resetBeforeIfHalted: effectiveResetBefore,
                 timeout: timeout
             );
 
@@ -149,7 +187,7 @@ public class ExecuteSkillNode : BTNode
                         var key = kvp.Key;
                         var value = kvp.Value;
                         
-                        Logger.LogInformation("ExecuteSkill: Skill {SkillName} - FinalResultData {Key} = {Value}", 
+                        Logger.LogDebug("ExecuteSkill: Skill {SkillName} - FinalResultData {Key} = {Value}", 
                             resolvedSkillName, key, value?.ToString() ?? "null");
                         
                         Set($"{resolvedSkillName}_{key}", value);

@@ -981,7 +981,6 @@
           "BaSyx.Registry.Client.Http": "2.0.24",
           "BaSyx.Submodel.Client.Http": "1.0.0",
           "BaSyx.Utils": "2.0.24",
-          "I40Sharp.Messaging": "1.0.0",
           "Microsoft.Extensions.Http": "8.0.0",
           "Microsoft.Extensions.Logging.Console": "8.0.0",
           "Microsoft.VisualStudio.Azure.Containers.Tools.Targets": "1.23.0"
@@ -2447,8 +2446,8 @@
     },
     "I40Sharp.Messaging/1.0.0": {
       "type": "project",
-      "path": "../I4.0-Sharp-Messaging/I40Sharp.Messaging/I40Sharp.Messaging.csproj",
-      "msbuildProject": "../I4.0-Sharp-Messaging/I40Sharp.Messaging/I40Sharp.Messaging.csproj"
+      "path": "../I4.0L-Sharp-Messaging/I40Sharp.Messaging/I40Sharp.Messaging.csproj",
+      "msbuildProject": "../I4.0L-Sharp-Messaging/I40Sharp.Messaging/I40Sharp.Messaging.csproj"
     },
     "SkillSharp.Client/1.0.0": {
       "type": "project",
@@ -2471,39 +2470,46 @@
     ]
   },
   "packageFolders": {
-    "/home/benjamin/.nuget/packages/": {}
+    "C:\\Users\\bebl01\\.nuget\\packages\\": {},
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/home/benjamin/AgentDevelopment/MAS-BT/MAS-BT.csproj",
+      "projectUniqueName": "C:\\Users\\bebl01\\Repos\\CSharpEnv\\MAS-BT\\MAS-BT.csproj",
       "projectName": "MAS-BT",
-      "projectPath": "/home/benjamin/AgentDevelopment/MAS-BT/MAS-BT.csproj",
-      "packagesPath": "/home/benjamin/.nuget/packages/",
-      "outputPath": "/home/benjamin/AgentDevelopment/MAS-BT/obj/",
+      "projectPath": "C:\\Users\\bebl01\\Repos\\CSharpEnv\\MAS-BT\\MAS-BT.csproj",
+      "packagesPath": "C:\\Users\\bebl01\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\bebl01\\Repos\\CSharpEnv\\MAS-BT\\obj\\",
       "projectStyle": "PackageReference",
+      "fallbackFolders": [
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+      ],
       "configFilePaths": [
-        "/home/benjamin/.nuget/NuGet/NuGet.Config"
+        "C:\\Users\\bebl01\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
         "net10.0"
       ],
       "sources": {
-        "/usr/lib/dotnet/library-packs": {},
+        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+        "C:\\Program Files\\dotnet\\library-packs": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
         "net10.0": {
           "targetAlias": "net10.0",
           "projectReferences": {
-            "/home/benjamin/AgentDevelopment/AAS-Sharp-Client/AAS Sharp Client.csproj": {
-              "projectPath": "/home/benjamin/AgentDevelopment/AAS-Sharp-Client/AAS Sharp Client.csproj"
+            "C:\\Users\\bebl01\\Repos\\CSharpEnv\\AAS-Sharp-Client\\AAS Sharp Client.csproj": {
+              "projectPath": "C:\\Users\\bebl01\\Repos\\CSharpEnv\\AAS-Sharp-Client\\AAS Sharp Client.csproj"
             },
-            "/home/benjamin/AgentDevelopment/I4.0-Sharp-Messaging/I40Sharp.Messaging/I40Sharp.Messaging.csproj": {
-              "projectPath": "/home/benjamin/AgentDevelopment/I4.0-Sharp-Messaging/I40Sharp.Messaging/I40Sharp.Messaging.csproj"
+            "C:\\Users\\bebl01\\Repos\\CSharpEnv\\I4.0L-Sharp-Messaging\\I40Sharp.Messaging\\I40Sharp.Messaging.csproj": {
+              "projectPath": "C:\\Users\\bebl01\\Repos\\CSharpEnv\\I4.0L-Sharp-Messaging\\I40Sharp.Messaging\\I40Sharp.Messaging.csproj"
             },
-            "/home/benjamin/AgentDevelopment/Skill-Sharp-Client/UAClient/UAClient.csproj": {
-              "projectPath": "/home/benjamin/AgentDevelopment/Skill-Sharp-Client/UAClient/UAClient.csproj"
+            "C:\\Users\\bebl01\\Repos\\CSharpEnv\\Skill-Sharp-Client\\UAClient\\UAClient.csproj": {
+              "projectPath": "C:\\Users\\bebl01\\Repos\\CSharpEnv\\Skill-Sharp-Client\\UAClient\\UAClient.csproj"
             }
           }
         }
@@ -2571,7 +2577,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/10.0.100/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.100/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.CSharp": "(,4.7.32767]",
           "Microsoft.VisualBasic": "(,10.4.32767]",
@@ -2854,7 +2860,7 @@
       "code": "NU1510",
       "level": "Warning",
       "warningLevel": 1,
-      "message": "PackageReference System.Text.Json will not be pruned. Consider removing this package from your dependencies, as it is likely unnecessary.",
+      "message": "PackageReference System.Text.Json wird nicht gekürzt. Erwägen Sie, dieses Paket aus Ihren Abhängigkeiten zu entfernen, da es wahrscheinlich nicht erforderlich ist.",
       "libraryId": "System.Text.Json",
       "targetGraphs": [
         "net10.0"

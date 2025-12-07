@@ -7,14 +7,14 @@
       <RetryUntilSuccess name="MqttConnectRetry" numAttempts="5" delayMs="2000">
         <ConnectToMessagingBroker 
           name="ConnectMqtt"
-          BrokerHost="localhost"
-          BrokerPort="1883"
+          BrokerHost="{config.MQTT.Broker}"
+          BrokerPort="{config.MQTT.Port}"
           DefaultTopic="factory/agents/messages"
           TimeoutMs="10000" />
       </RetryUntilSuccess>
       
       <!-- ==================== SCHRITT 2: OPC UA VERBINDUNG ==================== -->
-      <RetryUntilSuccess name="OpcUaConnectRetry" numAttempts="5" delayMs="3000">
+        <RetryUntilSuccess name="OpcUaConnectRetry" numAttempts="5" delayMs="3000">
         <ConnectToModule 
           name="ConnectOPC"
           Endpoint="{config.OPCUA.Endpoint}"
@@ -25,21 +25,29 @@
       <Sequence name="LockSequence">
         <LockResource 
           name="LockModule"
-          ModuleName="ScrewingStation"
+          ModuleName="{config.Agent.ModuleId}"
           ResourceId="{config.Agent.ModuleId}"
           TimeoutSeconds="30" />
         
         <CheckLockedState
           name="VerifyLocked"
-          ModuleName="ScrewingStation"
+          ModuleName="{config.Agent.ModuleId}"
           ExpectLocked="true" />
       </Sequence>
+
+      <!-- ==================== SCHRITT 3b: PORTS COUPLEN ==================== -->
+      <RetryUntilSuccess name="EnsureCoupledBeforeStartup" numAttempts="15" delayMs="2000">
+        <EnsurePortsCoupled
+          name="EnsurePortsCoupled"
+          ModuleName="{config.Agent.ModuleId}"
+          TimeoutSeconds="45" />
+      </RetryUntilSuccess>
       
       <!-- ==================== SCHRITT 4: STARTUP SKILL ==================== -->
       <Sequence name="StartupSequence">
         <ExecuteSkill 
           name="ExecuteStartup"
-          ModuleName="ScrewingStation"
+          ModuleName="{config.Agent.ModuleId}"
           SkillName="StartupSkill"
           WaitForCompletion="false"
           TimeoutSeconds="60"
@@ -48,12 +56,21 @@
         <!-- Warte auf Running State (nicht Completed, da Continuous Skill) -->
         <WaitForSkillState
           name="WaitForStartupRunning"
-          ModuleName="ScrewingStation"
+          ModuleName="{config.Agent.ModuleId}"
           SkillName="StartupSkill"
           TargetState="Running"
           TimeoutSeconds="30"
           PollIntervalMs="500"
           SendErrorOnTimeout="true" />
+        
+        <!-- Versuche Coupling auch wenn Startup bereits läuft -->
+        <Fallback name="EnsureCoupledWhileRunning">
+          <EnsurePortsCoupled
+            name="EnsurePortsCoupledWhileRunning"
+            ModuleName="{config.Agent.ModuleId}"
+            TimeoutSeconds="45" />
+          <AlwaysSuccess name="SkipCoupleRetry" />
+        </Fallback>
         
         <!-- Send Log Message: Initialization Complete -->
         <SendLogMessage
@@ -72,7 +89,7 @@
           
           <!-- 1. Warte auf SkillRequest Message (blockiert bis Message da ist) -->
           <ReadMqttSkillRequest name="WaitForSkillRequest" 
-                                ModuleId="Module2" 
+                                ModuleId="{config.Agent.ModuleId}" 
                                 TimeoutMs="100"/>
           
           <!-- 2. Validate & Execute Action (mit Error Handling) -->
@@ -91,7 +108,7 @@
                 <!-- Modul ist busy → Send Refusal (VOR Start!) -->
                 <Sequence name="SendRefusalModuleBusy">
                   <SendSkillResponse name="SendRefusal" 
-                                    ModuleId="Module2" 
+                                    ModuleId="{config.Agent.ModuleId}" 
                                     ActionState="ERROR" 
                                     FrameType="refusal"/>
                   
@@ -115,7 +132,7 @@
                 <!-- Preconditions failed → Send Refusal (VOR Start!) -->
                 <Sequence name="SendRefusalNotReady">
                   <SendSkillResponse name="SendRefusal" 
-                                    ModuleId="Module2" 
+                                    ModuleId="{config.Agent.ModuleId}" 
                                     ActionState="ERROR" 
                                     FrameType="refusal"/>
                   
@@ -126,7 +143,7 @@
               
               <!-- 2c. Send Consent (NACH erfolgreicher Validierung) -->
               <SendSkillResponse name="SendConsent" 
-                                ModuleId="Module2" 
+                                ModuleId="{config.Agent.ModuleId}" 
                                 ActionState="PLANNED" 
                                 FrameType="consent"/>
               
@@ -137,7 +154,7 @@
               
               <!-- 2e. Send Running State (inform) -->
               <SendSkillResponse name="SendRunning" 
-                                ModuleId="Module2" 
+                                ModuleId="{config.Agent.ModuleId}" 
                                 ActionState="EXECUTING" 
                                 FrameType="inform"/>
               
@@ -171,7 +188,7 @@
                                  State="ERROR"/>
                   
                   <SendSkillResponse name="SendFailure" 
-                                    ModuleId="Module2" 
+                                    ModuleId="{config.Agent.ModuleId}" 
                                     ActionState="ERROR" 
                                     FrameType="failure"/>
                   
@@ -182,7 +199,7 @@
               
               <!-- 2g. Update Inventory -->
               <UpdateInventoryFromAction name="UpdateInventory" 
-                                         ModuleId="Module2" 
+                                         ModuleId="{config.Agent.ModuleId}" 
                                          PublishToMqtt="true"/>
               
               <!-- 2h. Setze Module State auf DONE -->
@@ -192,13 +209,13 @@
               
               <!-- 2i. Send Completed State (inform) -->
               <SendSkillResponse name="SendCompleted" 
-                                ModuleId="Module2" 
+                                ModuleId="{config.Agent.ModuleId}" 
                                 ActionState="DONE" 
                                 FrameType="inform"/>
               
               <!-- 2j. Publish Module State -->
               <SendStateMessage name="PublishState" 
-                               ModuleId="Module2" 
+                               ModuleId="{config.Agent.ModuleId}" 
                                IncludeModuleLocked="true" 
                                IncludeModuleReady="true"/>
             </Sequence>
@@ -239,6 +256,10 @@
       <input_port name="ModuleName"/>
       <input_port name="ResourceId"/>
       <input_port name="TimeoutSeconds"/>
+    </Action>
+    <Action ID="EnsurePortsCoupled">
+      <input_port name="ModuleName"/>
+      <input_port name="TimeoutSeconds" default="30"/>
     </Action>
     <Condition ID="CheckLockedState">
       <input_port name="ModuleName"/>

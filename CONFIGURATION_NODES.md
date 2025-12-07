@@ -121,6 +121,21 @@ var message = new I40MessageBuilder()
 await messagingClient.PublishAsync(message, "factory/system/coupling");
 ```
 
+### 9. EnsurePortsCoupledNode
+
+**Zweck:** Prüft nach dem Lock, ob alle Ports eines Moduls über einen CoupleSkill verfügen und versetzt diese bei Bedarf in den Zustand `Running`, bevor der Startup-Skill ausgeführt wird.
+
+**Inputs:**
+- `ModuleName` (string): Modul, dessen Ports geprüft werden sollen
+- `TimeoutSeconds` (int, optional): Zeitlimit pro Port für den Wechsel auf `Running`
+
+**Outputs:**
+- `portsCoupled` (bool): `true`, wenn alle Couple-Ports laufen oder keine existieren
+
+**Besonderheiten:**
+- Nutzt die port-spezifischen `RemotePort.CoupleAsync`-Methoden aus dem SkillSharp-Client.
+- Bricht mit `Failure` ab, falls mindestens ein Couple-Skill nicht auf `Running` gebracht werden konnte.
+
 ## 🏗️ Architektur
 
 ### BTNode Basisklasse

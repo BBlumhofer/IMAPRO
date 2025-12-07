@@ -1,24 +1,6 @@
 # ToDo-Liste: Execution Agent Basis-Implementierung
 ## Update: 
 
-Was ich aktualisieren sollte:
-✅ Phase 3: Messaging - Teilweise erledigt
-Ich sollte dokumentieren, dass wir gerade:
-
-✅ ModuleState.cs im AAS-Sharp-Client erstellt haben
-
-Ersetzt manuelle Property-Erstellung in SendStateMessageNode
-Mit Gettern/Settern und korrekter ValueType-Serialisierung
-✅ Action.cs erweitert haben mit:
-
-GetFinalResultData() - gibt FinalResultData zurück
-GetInputParameters() - gibt InputParameters zurück
-GetActionTitle(), GetMachineName() - Getter-Methoden
-✅ SendStateMessageNode refaktoriert
-
-Verwendet jetzt ModuleState aus AAS-Sharp-Client
-Keine manuelle Property-Erstellung mehr
-✅ SendSkillResponseNode refaktoriert
 
 Verwendet jetzt Action aus Context
 Keine manuelle Property-Erstellung mehr
@@ -89,64 +71,7 @@ Status: Kompiliert, aber noch nicht getestet ob Values jetzt korrekt serialisier
     <EnsureStartupRunning ModuleName="ScrewingStation"/>
     <ExecuteSkill SkillName="Screw" .../>
   </Sequence>
-  ```
-
-### 🐛 Bug #3: Tree läuft endlos nach Lock-Verlust
-**Problem:**
-- Nach Lock-Verlust läuft Tree weiter (Tick #800+)
-- Keine Timeout-Logic
-- Keine Failure Propagation
-
-**Lösung:**
-- [ ] **Timeout für Lock-Check Sequence**
-  - Wrapping mit Timeout Node
-  - Max 5 Sekunden für Lock-Check
-  - Bei Timeout → Trigger Recovery
-
-- [ ] **Failure Propagation Fix:**
-  - CheckLockStatus Failure sollte Sequence abbrechen
-  - Statt Sequence → Fallback mit Recovery Branch
-
-### 🐛 Bug #4: CheckLockedStateNode ExpectLocked=true trotz Lock-Verlust
-**Problem:**
-- CheckLockedStateNode hat `ExpectLocked` Parameter
-- Im Tree überall `ExpectLocked="true"` (implizit)
-- Bei Lock-Verlust sollte aber Failure zurückgegeben werden
-
-**Analyse:**
-- CheckLockedStateNode.cs Zeile 44: `bool matches = (isLocked == ExpectLocked);`
-- Wenn isLocked=false, ExpectLocked=true → matches=false → Failure ✅
-- **Das ist korrekt!** Bug liegt nicht hier.
-
-**Root Cause:**
-- Tree verwendet `RetryUntilSuccess` für Lock-Checks
-- Das überschreibt Failures und retried endlos
-- **Lösung:** RetryUntilSuccess durch Fallback mit Recovery ersetzen
-
----
-
-## 🎉 ABGESCHLOSSEN
-
-### ✅ Phase 0: Infrastructure & Cleanup
-- [x] **MqttLogger implementiert** - Automatisches Logging aller Nodes via MQTT
-- [x] **Trees bereinigt** - 39 `SendLogMessage` Nodes entfernt (53% kleiner)
-
-### ✅ Phase 1: Core Monitoring Nodes (FERTIG) ✨
-- [x] **CheckReadyState** - Prüft ob Modul bereit ist
-- [x] **CheckErrorState** - Prüft auf Fehler im Modul
-- [x] **CheckLockedState** - Erweiterte Lock-Prüfung
-- [x] **MonitoringSkill** - Liest Skill State + Monitoring Variables
-
-### ✅ Phase 2: Skill Control Nodes (FERTIG) ✨
-- [x] **WaitForSkillState** - Wartet auf spezifischen Skill-Zustand (Polling-basiert)
-- [x] **AbortSkill** - Bricht laufenden Skill ab (Halt + Warten auf Halted)
-- [x] **PauseSkill** - Pausiert Skill (Suspended State)
-- [x] **ResumeSkill** - Setzt pausierten Skill fort
-- [x] **RetrySkill** - Wiederholt fehlgeschlagenen Skill mit Exponential Backoff
-
-**Dokumentation:** ✅ MONITORING_AND_SKILL_NODES.md erstellt
-
----
+-
 
 ## 🚀 Priorität 1: Recovery & Monitoring Logic (JETZT - Phase 3.5)
 
@@ -218,10 +143,6 @@ Status: Kompiliert, aber noch nicht getestet ob Values jetzt korrekt serialisier
 
 ## 🚀 Priorität 2: MQTT Messaging Integration (Phase 3)
 
-### ✅ Skill Execution Messaging (FERTIG - 2/2) ✨
-- [x] **ReadMqttSkillRequest** ✅
-- [x] **SendSkillResponse** ✅
-
 ### 3.1 Remaining Messaging Nodes
 
 - [ ] **UpdateInventoryFromAction** - Aktualisiert Inventar nach Action-Completion
@@ -232,8 +153,22 @@ Status: Kompiliert, aber noch nicht getestet ob Values jetzt korrekt serialisier
 
 - [ ] **UpdateNeighborsFromAction** - Aktualisiert gekoppelte Module nach Action
   - **Quelle:** Action.Effects (gekoppelte/entkoppelte Module)
-  - **Updated:** Context Neighbors-State
+  - **Updated:** Context Neighbors-State ( verwendet Neighbors from UA Client):
   - **Sendet:** NeighborMessage via MQTT (optional)
+      example usage: 
+      var map = module.GetClosedPortsPartnerRfidTags();
+                              if (map == null || map.Count == 0)
+                              {
+                                  Console.WriteLine("No closed ports with partner RFID tags found.");
+                              }
+                              else
+                              {
+                                  Console.WriteLine("Closed ports with PartnerRfidTag:");
+                                  foreach (var p in map)
+                                  {
+                                      Console.WriteLine($"  Port '{p.Key}' -> '{p.Value}'");
+                                  }
+                              }
 
 ### 3.2 Generic Messaging Nodes (Inter-Agent Communication)
 
@@ -364,16 +299,6 @@ Status: Kompiliert, aber noch nicht getestet ob Values jetzt korrekt serialisier
 
 ## 📊 Implementierungs-Reihenfolge (AKTUALISIERT)
 
-### ✅ Phase 0: Infrastructure (ABGESCHLOSSEN)
-1. ✅ MqttLogger
-2. ✅ Trees bereinigt
-
-### ✅ Phase 1: Core Monitoring (ABGESCHLOSSEN)
-1. ✅ CheckReadyState, CheckErrorState, CheckLockedState, MonitoringSkill
-
-### ✅ Phase 2: Skill Control (ABGESCHLOSSEN)
-1. ✅ WaitForSkillState, AbortSkill, PauseSkill, ResumeSkill, RetrySkill
-2. ✅ MONITORING_AND_SKILL_NODES.md Dokumentation
 
 ### 🔥 Phase 3.5: Recovery & Monitoring (JETZT - KRITISCH!)
 1. [ ] **HaltAllSkillsNode** - Stop alle Skills bei Recovery
@@ -390,8 +315,6 @@ Status: Kompiliert, aber noch nicht getestet ob Values jetzt korrekt serialisier
 **Status:** 🔥 **0/10 Recovery Tasks - HÖCHSTE PRIORITÄT**
 
 ### 🔄 Phase 3: Messaging Integration (DANACH)
-1. [x] **ReadMqttSkillRequest** - Action von Planning Agent lesen ✅
-2. [x] **SendSkillResponse** - ActionState zurücksenden ✅
    - Sendet komplette Action mit Status, InputParameters, FinalResultData
 3. [ ] UpdateInventoryFromAction - Inventar nach Action aktualisieren
 4. [ ] UpdateNeighborsFromAction - Gekoppelte Module aktualisieren
@@ -402,12 +325,6 @@ Status: Kompiliert, aber noch nicht getestet ob Values jetzt korrekt serialisier
 9. [ ] ReadNeighborMessage - Gekoppelte Module lesen
 10. [ ] **Tests:** MQTT Integration Tests
 11. [ ] **Dokumentation:** MESSAGING_NODES.md erstellen
-
-**Status:** 🎉 **2/9 Core Messaging Nodes implementiert!**
-- ✅ ReadMqttSkillRequest - Empfängt Actions via MQTT
-- ✅ SendSkillResponse - Sendet ActionState Updates mit kompletter Action
-- ✅ Runtime Placeholder Replacement ({MachineName} → "ScrewingStation")
-- ✅ CheckReadyState Logic korrigiert (gelockt = ready)
 
 ### ⏳ Phase 4: Constraints & Preconditions
 1. [ ] RequiresMaterial, ModuleReady, ProductMatchesOrder
@@ -426,9 +343,6 @@ Status: Kompiliert, aber noch nicht getestet ob Values jetzt korrekt serialisier
 
 ## 🎯 Erfolgs-Kriterien
 
-### ✅ Phase 1+2 Erfolgreich:
-- [x] Alle 9 Monitoring + Skill Control Nodes kompilieren und laufen
-- [x] MONITORING_AND_SKILL_NODES.md dokumentiert
 
 ### 🔥 Phase 3.5 Erfolgreich wenn:
 - [ ] **Lock-Verlust Recovery:** Operator überschreibt Lock → Tree detected → Auto Re-Lock → Startup Restart → Resume
@@ -446,15 +360,10 @@ Status: Kompiliert, aber noch nicht getestet ob Values jetzt korrekt serialisier
 - [ ] Integration Test: Planning Agent → Execution Agent → Skill Execution
 
 ### ⏳ Minimal Viable Execution Agent kann (nach Phase 4):
-1. ✅ OPC UA Verbindung aufbauen
-2. ✅ Modul-Readiness prüfen
 3. [ ] **Action von MQTT lesen** (Planning Agent → Execution Agent)
 4. [ ] **Preconditions validieren** (Material, Tools aus Action.Preconditions)
-5. ✅ Skill ausführen mit Parametern
-6. ✅ Auf Skill Completion warten
 7. [ ] **ActionState zurücksenden** (Execution Agent → Planning Agent)
 8. [ ] **Inventar aktualisieren** (aus Action.FinalResultData)
-9. ✅ Fehler loggen
 
 ---
 

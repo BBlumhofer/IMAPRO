@@ -37,7 +37,7 @@
             <Sequence name="TryLockSequence">
               <LockResource 
                 name="LockModule"
-                ModuleName="ScrewingStation"
+                ModuleName="{config.Agent.ModuleId}"
                 ResourceId="{config.Agent.ModuleId}"
                 TimeoutSeconds="30" />
               
@@ -45,7 +45,7 @@
               
               <CheckLockStatus 
                 name="VerifyLock"
-                ModuleName="ScrewingStation" />
+                ModuleName="{config.Agent.ModuleId}" />
             </Sequence>
             
             <Sequence name="LockFailedSequence">
@@ -64,13 +64,13 @@
         <Sequence name="PreStartupLockCheck">
           <CheckLockStatus 
             name="CheckLockBeforeStartup"
-            ModuleName="ScrewingStation" />
+            ModuleName="{config.Agent.ModuleId}" />
         </Sequence>
         
         <Sequence name="StartupSequence">
           <ExecuteSkill 
             name="ExecuteStartup"
-            ModuleName="ScrewingStation"
+            ModuleName="{config.Agent.ModuleId}"
             SkillName="StartupSkill"
             WaitForCompletion="false"
             TimeoutSeconds="60"
@@ -82,7 +82,7 @@
       <Sequence name="ReadStorageSequence">
         <ReadStorage 
           name="ReadModuleStorage"
-          ModuleName="ScrewingStation" />
+          ModuleName="{config.Agent.ModuleId}" />
       </Sequence>
       
     </Sequence>

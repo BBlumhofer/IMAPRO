@@ -10,12 +10,12 @@ import paho.mqtt.client as mqtt
 from datetime import datetime, timezone
 
 # MQTT Broker Configuration
-BROKER_HOST = "localhost"
+BROKER_HOST = "172.24.100.85"
 BROKER_PORT = 1883
-TOPIC = "/Modules/Module2/SkillRequest/"
+TOPIC = "/Modules/CA-Module/SkillRequest/"
 
 # I4.0 Message with Action
-def create_skill_request(action_title="Screw"):
+def create_skill_request(action_title="Store"):
     """Erstellt eine I4.0 Message mit Action für SkillRequest"""
     
     conversation_id = f"conv_{int(time.time())}"
@@ -65,7 +65,7 @@ def create_skill_request(action_title="Screw"):
                         "idShort": "MachineName",
                         "modelType": "Property",
                         "valueType": "xs:string",
-                        "value": "ScrewingStation"
+                        "value": "CA-Module"
                     },
                     {
                         "idShort": "InputParameters",
@@ -168,7 +168,7 @@ def main():
     print(f"\n📤 Sende SkillRequest auf Topic: {TOPIC}")
     
     skill_request = create_skill_request(
-        action_title="Screw"
+        action_title="Store"
     )
     
     payload = json.dumps(skill_request, indent=2)

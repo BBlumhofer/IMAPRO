@@ -8,6 +8,7 @@ using MAS_BT.Nodes.Monitoring;
 using MAS_BT.Nodes.SkillControl;
 using MAS_BT.Nodes.Core;
 using MAS_BT.Nodes.Constraints;
+using MAS_BT.Nodes.Recovery;
 using MAS_BT.Nodes; // Neue Monitoring Nodes
 
 namespace MAS_BT.Serialization;
@@ -136,6 +137,7 @@ public class NodeRegistry
         Register<ReadNameplateNode>("ReadNameplate");
         Register<ConnectToModuleNode>();
         Register<CoupleModuleNode>();
+        Register<EnsurePortsCoupledNode>();
         
         // Locking Nodes
         Register<LockResourceNode>("LockResource");
@@ -178,6 +180,12 @@ public class NodeRegistry
         
         // Skill Nodes
         Register<ExecuteSkillNode>();
+
+        // Recovery Nodes
+        Register<RecoverySequenceNode>("RecoverySequence");
+        Register<EnsureModuleLockedNode>("EnsureModuleLocked");
+        Register<EnsureStartupRunningNode>("EnsureStartupRunning");
+        Register<HaltAllSkillsNode>("HaltAllSkills");
         
         _logger.LogInformation("Standard Nodes registriert: {Count}", _nodeTypes.Count);
     }

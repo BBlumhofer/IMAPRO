@@ -5,19 +5,19 @@
       
       <!-- Setup -->
       <Sequence name="Setup">
-        <ConnectToModule name="Connect" ModuleName="ScrewingStation" />
-        <LockResource name="Lock" ModuleName="ScrewingStation" />
+        <ConnectToModule name="Connect" ModuleName="{config.Agent.ModuleId}" />
+        <LockResource name="Lock" ModuleName="{config.Agent.ModuleId}" />
       </Sequence>
 
       <!-- Test 1: Normal Execution -->
       <Sequence name="NormalExecution">
-        <CheckReadyState name="CheckReady" ModuleName="ScrewingStation" />
-        <CheckErrorState name="CheckNoErrors" ModuleName="ScrewingStation" />
+        <CheckReadyState name="CheckReady" ModuleName="{config.Agent.ModuleId}" />
+        <CheckErrorState name="CheckNoErrors" ModuleName="{config.Agent.ModuleId}" />
         
-        <ExecuteSkill 
+          <ExecuteSkill 
           name="ExecuteScrew" 
           SkillName="Screw" 
-          ModuleName="ScrewingStation"
+          ModuleName="{config.Agent.ModuleId}"
           Parameters="ProductId=Product123"
           WaitForCompletion="true" />
       </Sequence>
@@ -29,7 +29,7 @@
         <ExecuteSkill 
           name="TryExecute" 
           SkillName="Screw" 
-          ModuleName="ScrewingStation"
+          ModuleName="{config.Agent.ModuleId}"
           Parameters="ProductId=Product456"
           WaitForCompletion="true" />
         
@@ -37,7 +37,7 @@
         <Sequence name="RetrySequence">
           <RetrySkill 
             name="RetryScrew" 
-            ModuleName="ScrewingStation"
+            ModuleName="{config.Agent.ModuleId}"
             SkillName="Screw"
             Parameters="ProductId=Product456"
             MaxRetries="3"
@@ -50,12 +50,12 @@
       <Sequence name="MonitoringTest">
         <MonitoringSkill 
           name="ReadSkillState" 
-          ModuleName="ScrewingStation"
+          ModuleName="{config.Agent.ModuleId}"
           SkillName="Screw" />
         
         <CheckErrorState 
           name="CheckErrors" 
-          ModuleName="ScrewingStation" />
+          ModuleName="{config.Agent.ModuleId}" />
       </Sequence>
 
       <!-- Test 4: Advanced Retry with Monitoring -->
@@ -64,26 +64,26 @@
           <Sequence name="ExecuteAndVerify">
             
             <!-- Pre-execution checks -->
-            <CheckReadyState name="PreCheck" ModuleName="ScrewingStation" />
+            <CheckReadyState name="PreCheck" ModuleName="{config.Agent.ModuleId}" />
             
             <!-- Execute -->
             <ExecuteSkill 
               name="Execute" 
               SkillName="Screw" 
-              ModuleName="ScrewingStation"
+              ModuleName="{config.Agent.ModuleId}"
               Parameters="ProductId=Product789"
               WaitForCompletion="false" />
             
             <!-- Wait for completion -->
             <WaitForSkillState 
               name="WaitComplete" 
-              ModuleName="ScrewingStation"
+              ModuleName="{config.Agent.ModuleId}"
               SkillName="Screw"
               TargetState="Completed"
               TimeoutSeconds="60" />
             
             <!-- Post-execution check -->
-            <CheckErrorState name="PostCheck" ModuleName="ScrewingStation" />
+            <CheckErrorState name="PostCheck" ModuleName="{config.Agent.ModuleId}" />
             
           </Sequence>
         </RetryNode>
@@ -91,7 +91,7 @@
 
       <!-- Cleanup -->
       <Sequence name="Cleanup">
-        <UnlockResource name="Unlock" ModuleName="ScrewingStation" />
+        <UnlockResource name="Unlock" ModuleName="{config.Agent.ModuleId}" />
       </Sequence>
 
     </Sequence>

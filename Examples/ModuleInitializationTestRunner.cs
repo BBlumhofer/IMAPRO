@@ -73,6 +73,8 @@ public class ModuleInitializationTestRunner
         context.Set("config.OPCUA.Username", opcuaUsername);
         context.Set("config.OPCUA.Password", opcuaPassword);
         context.Set("config.Agent.ModuleId", moduleId);
+        // Alias für Legacy-Nodes: einige Nodes lesen direkt 'ModuleId' aus dem Context
+        context.Set("ModuleId", moduleId);
         context.Set("AgentId", agentId);
         
         // MessagingClient im Context speichern (für SendLogMessage Nodes - falls noch vorhanden)
@@ -91,14 +93,13 @@ public class ModuleInitializationTestRunner
         try
         {
             // Standardpfad oder Command-Line-Argument
-            var btFilePath = args.Length > 0 && File.Exists(args[0])
-                ? args[0]
-                : "Trees/Init_and_ExecuteSkill.bt.xml";
+            var btFilePath = ResolveBehaviorTreePath(args) ?? "Trees/Init_and_ExecuteSkill.bt.xml";
             
             if (!File.Exists(btFilePath))
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"❌ BT Datei nicht gefunden: {btFilePath}");
+                Console.WriteLine("   → Nutze 'dotnet run -- Trees/Examples/MyTree.bt.xml' oder 'dotnet run --Examples/MyTree.bt.xml'");
                 Console.ResetColor();
                 return;
             }
@@ -306,6 +307,53 @@ public class ModuleInitializationTestRunner
         }
     }
     
+    private static string? ResolveBehaviorTreePath(string[] args)
+    {
+        if (args == null || args.Length == 0)
+            return null;
+
+        foreach (var rawArg in args)
+        {
+            if (string.IsNullOrWhiteSpace(rawArg) || rawArg == "--")
+                continue;
+
+            foreach (var candidate in BuildPathCandidates(rawArg))
+            {
+                if (string.IsNullOrWhiteSpace(candidate))
+                    continue;
+
+                var normalized = candidate.Trim().Trim('"').Replace('/', Path.DirectorySeparatorChar);
+                if (File.Exists(normalized))
+                    return normalized;
+
+                if (!Path.IsPathRooted(normalized))
+                {
+                    var relativeToTrees = Path.Combine("Trees", normalized.TrimStart(Path.DirectorySeparatorChar));
+                    if (File.Exists(relativeToTrees))
+                        return relativeToTrees;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<string> BuildPathCandidates(string rawArg)
+    {
+        yield return rawArg;
+
+        if (rawArg.StartsWith("--", StringComparison.Ordinal))
+        {
+            var trimmed = rawArg.TrimStart('-');
+            yield return trimmed;
+
+            if (trimmed.StartsWith("/", StringComparison.Ordinal) || trimmed.StartsWith("\\", StringComparison.Ordinal))
+            {
+                yield return trimmed.TrimStart('/', '\\');
+            }
+        }
+    }
+
     private static string GetConfigValue(Dictionary<string, object> config, string path, string defaultValue)
     {
         var parts = path.Split('.');
