@@ -27,7 +27,7 @@ namespace MAS_BT.Services
         private readonly object _publishLock = new();
         private readonly Dictionary<string, System.Threading.CancellationTokenSource> _pendingPublishes = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> _lastEventMessages = new(StringComparer.OrdinalIgnoreCase);
-        private readonly int _debounceMs = 150; // coalesce rapid successive changes into a single publish
+        private int _debounceMs = 150; // coalesce rapid successive changes into a single publish (default)
 
         public StorageMqttNotifier(BTContext context, RemoteServer server, MessagingClient messagingClient)
         {
@@ -37,6 +37,22 @@ namespace MAS_BT.Services
 
             _agentId = _context.AgentId ?? "UnknownAgent";
             _agentRole = _context.AgentRole ?? "ResourceHolon";
+
+            // Read optional debounce configuration from context (keys: 'MQTT.DebounceMs' or 'config.MQTT.DebounceMs')
+            try
+            {
+                if (_context.Has("MQTT.DebounceMs"))
+                {
+                    var v = _context.Get<int>("MQTT.DebounceMs");
+                    if (v > 0) _debounceMs = v;
+                }
+                else if (_context.Has("config.MQTT.DebounceMs"))
+                {
+                    var v = _context.Get<int>("config.MQTT.DebounceMs");
+                    if (v > 0) _debounceMs = v;
+                }
+            }
+            catch { /* ignore config parse errors and keep default */ }
         }
 
         public async Task RegisterAsync()
