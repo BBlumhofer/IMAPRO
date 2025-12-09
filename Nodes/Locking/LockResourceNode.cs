@@ -15,6 +15,7 @@ public class LockResourceNode : BTNode
     public string ModuleName { get; set; } = string.Empty;
     public int TimeoutSeconds { get; set; } = 30;
     public int RetryDelaySeconds { get; set; } = 2;
+        public bool RetryOnNull { get; set; } = false;
     
     public LockResourceNode() : base("LockResource")
     {
@@ -99,11 +100,18 @@ public class LockResourceNode : BTNode
                     return NodeStatus.Success;
                 }
 
+                // If lockResult is null, it indicates an unexpected/transient error during Lock init.
                 if (!lockResult.HasValue)
                 {
-                    Logger.LogError("LockResource: Lock call returned null for {ModuleName}. Aborting.", module.Name);
-                    Set("locked", false);
-                    return NodeStatus.Failure;
+                    if (!RetryOnNull)
+                    {
+                        Logger.LogError("LockResource: Lock call returned null for {ModuleName}. Aborting.", module.Name);
+                        Set("locked", false);
+                        return NodeStatus.Failure;
+                    }
+
+                    // If configured, treat null as transient (like 'false') and allow retrying until deadline
+                    Logger.LogWarning("LockResource: Lock call returned null for {ModuleName}. Will retry because RetryOnNull=true (attempt {Attempt})", module.Name, attempt);
                 }
 
                 if (!enableRetry || DateTime.UtcNow >= deadline)
