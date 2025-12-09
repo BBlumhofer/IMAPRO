@@ -147,7 +147,7 @@ namespace MAS_BT.Services
                 try
                 {
                     // get last event message if present
-                    string last = string.Empty;
+                    string? last = null;
                     lock (_publishLock)
                     {
                         _lastEventMessages.TryGetValue(t.key, out last);
@@ -232,7 +232,7 @@ namespace MAS_BT.Services
                     await Task.Delay(_debounceMs, cts.Token);
                     if (cts.IsCancellationRequested) return;
 
-                    string eventText;
+                    string? eventText = null;
                     lock (_publishLock)
                     {
                         _pendingPublishes.Remove(key);
