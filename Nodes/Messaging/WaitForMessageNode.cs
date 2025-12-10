@@ -131,6 +131,8 @@ public class WaitForMessageNode : BTNode
         if ((DateTime.UtcNow - _startTime).TotalSeconds > TimeoutSeconds)
         {
             Logger.LogWarning("WaitForMessage: Timeout after {Timeout} seconds", TimeoutSeconds);
+            // Reset timer so a subsequent tick can retry without being stuck in immediate timeouts
+            _startTime = DateTime.UtcNow;
             return NodeStatus.Failure;
         }
         
@@ -164,6 +166,8 @@ public class WaitForMessageNode : BTNode
                 {
                     Logger.LogInformation("WaitForMessage: Refusal received for conversation '{Conv}'", receivedConv);
                 }
+            // Reset timer to allow subsequent waits with the same node instance
+            _startTime = DateTime.UtcNow;
             return NodeStatus.Success;
         }
         

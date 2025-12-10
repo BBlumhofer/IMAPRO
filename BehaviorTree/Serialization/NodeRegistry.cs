@@ -11,6 +11,7 @@ using MAS_BT.Nodes.Constraints;
 using MAS_BT.Nodes.Recovery;
 using MAS_BT.Nodes; // Neue Monitoring Nodes
 using MAS_BT.Nodes.Planning;
+using MAS_BT.Nodes.Dispatching;
 
 namespace MAS_BT.Serialization;
 
@@ -161,6 +162,13 @@ public class NodeRegistry
         Register<SendStateMessageNode>();
         Register<EnableStorageChangeMqttNode>();
         Register<SendProcessChainRequestNode>();
+        Register<InitializeDispatchingStateNode>("InitializeDispatchingState");
+        Register<SubscribeDispatchingTopicsNode>("SubscribeDispatchingTopics");
+        Register<HandleModuleRegistrationNode>("HandleModuleRegistration");
+        Register<HandleProcessChainRequestNode>("HandleProcessChainRequest");
+        Register<HandleManufacturingSequenceRequestNode>("HandleManufacturingSequenceRequest");
+        Register<HandleBookStepRequestNode>("HandleBookStepRequest");
+        Register<HandleTransportPlanRequestNode>("HandleTransportPlanRequest");
         
         // Monitoring Nodes (bestehende)
         Register<ReadStorageNode>();
