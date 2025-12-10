@@ -11,7 +11,7 @@
           "BaSyx.AAS.Client.Http": "1.0.0",
           "BaSyx.API": "2.0.24",
           "BaSyx.Clients.Http": "2.0.24",
-          "BaSyx.Models": "2.0.24",
+          "BaSyx.Models": "2.0.25",
           "BaSyx.Registry.Client.Http": "2.0.24",
           "BaSyx.Submodel.Client.Http": "1.0.0",
           "BaSyx.Utils": "2.0.24",
@@ -36,7 +36,7 @@
       },
       "BaSyx.API/2.0.24": {
         "dependencies": {
-          "BaSyx.Models": "2.0.24",
+          "BaSyx.Models": "2.0.25",
           "BaSyx.Utils.DependencyInjection": "2.0.24"
         },
         "runtime": {
@@ -58,15 +58,15 @@
           }
         }
       },
-      "BaSyx.Models/2.0.24": {
+      "BaSyx.Models/2.0.25": {
         "dependencies": {
           "BaSyx.Utils": "2.0.24",
           "BaSyx.Utils.DependencyInjection.Abstractions": "2.0.24"
         },
         "runtime": {
           "lib/net8.0/BaSyx.Models.dll": {
-            "assemblyVersion": "2.0.24.0",
-            "fileVersion": "2.0.24.0"
+            "assemblyVersion": "2.0.25.0",
+            "fileVersion": "2.0.25.0"
           }
         }
       },
@@ -109,7 +109,7 @@
       },
       "BaSyx.Utils.DependencyInjection/2.0.24": {
         "dependencies": {
-          "BaSyx.Models": "2.0.24",
+          "BaSyx.Models": "2.0.25",
           "BaSyx.Utils": "2.0.24",
           "BaSyx.Utils.DependencyInjection.Abstractions": "2.0.24",
           "Microsoft.Extensions.DependencyInjection": "8.0.0"
@@ -369,12 +369,12 @@
       "path": "basyx.clients.http/2.0.24",
       "hashPath": "basyx.clients.http.2.0.24.nupkg.sha512"
     },
-    "BaSyx.Models/2.0.24": {
+    "BaSyx.Models/2.0.25": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-YH1kWh/PGEu9N+djWiqkIWcwWdpowLuNwZ8iEekKTI7xl/nZa6Olo/2TTN9vKEK1RUdZ3/gPn5SwfsjdFdMKrQ==",
-      "path": "basyx.models/2.0.24",
-      "hashPath": "basyx.models.2.0.24.nupkg.sha512"
+      "sha512": "sha512-wZ8PCv6JTZDYCjddgyiFydUYXzk7ZYb8lDH0BoKsrSTZrvkK1h+MTH0iCUzUoW4awLZfYIyU8YzTU7gHfgLQPg==",
+      "path": "basyx.models/2.0.25",
+      "hashPath": "basyx.models.2.0.25.nupkg.sha512"
     },
     "BaSyx.Registry.Client.Http/2.0.24": {
       "type": "package",

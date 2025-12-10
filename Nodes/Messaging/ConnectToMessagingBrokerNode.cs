@@ -61,10 +61,13 @@ public class ConnectToMessagingBrokerNode : BTNode
                 clientId = $"MASBT_{Guid.NewGuid():N}";
             }
 
+            // Berechne Default-Topic falls nicht gesetzt
+            var resolvedDefaultTopic = ResolveDefaultTopic(DefaultTopic);
+
             Logger.LogInformation("ConnectToMessagingBroker: Using MQTT ClientId {ClientId}", clientId);
 
             var transport = new MqttTransport(BrokerHost, BrokerPort, clientId);
-            var client = new MessagingClient(transport, DefaultTopic);
+            var client = new MessagingClient(transport, resolvedDefaultTopic);
 
             // Event-Handler registrieren
             client.Connected += (s, e) =>
@@ -86,47 +89,23 @@ public class ConnectToMessagingBrokerNode : BTNode
 
             // Zusätzlich: Direkt am Transport die rohe Payload loggen (INFO),
             // damit wir alle eingehenden MQTT-Nachrichten im Agent-Log sehen.
-            try
+            transport.MessageReceived += (sender, e) =>
             {
-                var transportObj = client.GetType().GetField("_transport",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?
-                    .GetValue(client);
-
-                if (transportObj != null)
+                try
                 {
-                    var messageReceivedEvent = transportObj.GetType().GetEvent("MessageReceived");
-                    if (messageReceivedEvent != null)
+                    var topic = e.Topic ?? string.Empty;
+                    var payload = e.Payload ?? string.Empty;
+
+                    if (!string.IsNullOrEmpty(topic))
                     {
-                        EventHandler? transportHandler = null;
-                        transportHandler = (sender, e) =>
-                        {
-                            try
-                            {
-                                // Use reflection to obtain Topic and Payload properties from the event args
-                                var topicProp = e?.GetType().GetProperty("Topic");
-                                var payloadProp = e?.GetType().GetProperty("Payload");
-                                var topic = topicProp?.GetValue(e)?.ToString() ?? string.Empty;
-                                var payload = payloadProp?.GetValue(e)?.ToString() ?? string.Empty;
-
-                                if (!string.IsNullOrEmpty(topic))
-                                {
-                                    Logger.LogInformation("TransportMessage: Topic={Topic} Payload={Payload}", topic, payload);
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Logger.LogDebug(ex, "TransportMessage: failed to log raw payload");
-                            }
-                        };
-
-                        messageReceivedEvent.AddEventHandler(transportObj, transportHandler);
+                        Logger.LogInformation("TransportMessage: Topic={Topic} Payload={Payload}", topic, payload);
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "ConnectToMessagingBroker: Failed to attach transport-level payload logger");
-            }
+                catch (Exception ex)
+                {
+                    Logger.LogDebug(ex, "TransportMessage: failed to log raw payload");
+                }
+            };
 
             // Verbinde mit Timeout
             var connectTask = client.ConnectAsync();
@@ -170,5 +149,23 @@ public class ConnectToMessagingBrokerNode : BTNode
             Set("messagingConnected", false);
             return NodeStatus.Failure;
         }
+    }
+
+    private string ResolveDefaultTopic(string configuredTopic)
+    {
+        if (!string.IsNullOrWhiteSpace(configuredTopic))
+        {
+            return ResolvePlaceholders(configuredTopic);
+        }
+
+        // Fallback: Agent-spezifisches Topic aus Context / Config
+        var agentId = Context.Get<string>("AgentId")
+                     ?? Context.AgentId
+                     ?? Context.Get<string>("config.Agent.AgentId")
+                     ?? "Agent";
+
+        // Normalize to avoid MQTT issues with uri characters
+        var normalizedAgentId = agentId.Replace(" ", "_");
+        return $"{normalizedAgentId}/logs";
     }
 }

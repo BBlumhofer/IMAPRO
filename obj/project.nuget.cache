@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "dgSpecHash": "ceMXjkLs+I0=",
+  "dgSpecHash": "G/hlric3q80=",
   "success": true,
   "projectFilePath": "/home/benjamin/AgentDevelopment/MAS-BT/MAS-BT.csproj",
   "expectedPackageFiles": [
     "/home/benjamin/.nuget/packages/basyx.aas.client.http/1.0.0/basyx.aas.client.http.1.0.0.nupkg.sha512",
     "/home/benjamin/.nuget/packages/basyx.api/2.0.24/basyx.api.2.0.24.nupkg.sha512",
     "/home/benjamin/.nuget/packages/basyx.clients.http/2.0.24/basyx.clients.http.2.0.24.nupkg.sha512",
-    "/home/benjamin/.nuget/packages/basyx.models/2.0.24/basyx.models.2.0.24.nupkg.sha512",
+    "/home/benjamin/.nuget/packages/basyx.models/2.0.25/basyx.models.2.0.25.nupkg.sha512",
     "/home/benjamin/.nuget/packages/basyx.registry.client.http/2.0.24/basyx.registry.client.http.2.0.24.nupkg.sha512",
     "/home/benjamin/.nuget/packages/basyx.submodel.client.http/1.0.0/basyx.submodel.client.http.1.0.0.nupkg.sha512",
     "/home/benjamin/.nuget/packages/basyx.utils/2.0.24/basyx.utils.2.0.24.nupkg.sha512",

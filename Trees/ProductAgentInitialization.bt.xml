@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root BTCPP_format="4" main_tree_to_execute="ProductAgentInitialization">
+  <BehaviorTree ID="ProductAgentInitialization">
+    <Sequence name="ProductAgentFlow">
+      <Retry name="InitRetry" maxRetries="{config.RetryInit}" backoffMs="1000">
+        <Fallback name="InitWithErrorLogging">
+          <Sequence name="ProductAgentInitializationSequence">
+            <ReadConfig name="LoadProductConfig" configPath="configs/product_agent.json" />
+            <SetBlackboardValue name="BindAgentId" Key="AgentId" Value="{config.Agent.AgentId}" />
+            <SetBlackboardValue name="BindAgentRole" Key="AgentRole" Value="{config.Agent.Role}" />
+            <ConnectToMessagingBroker
+              name="ConnectMqtt"
+              BrokerHost="{config.MQTT.Broker}"
+              BrokerPort="{config.MQTT.Port}"
+              TimeoutMs="10000" />
+            <ReadShell name="LoadProductShell" AgentId="{config.Agent.AgentId}" ShellRepositoryEndpoint="{config.AAS.ShellRepositoryEndpoint}" />
+            <LoadProductIdentificationSubmodel name="LoadProductIdentification" SubmodelRepositoryEndpoint="{config.AAS.SubmodelRepositoryEndpoint}" TargetIdShort="ProductIdentification" />
+            <LoadBillOfMaterialSubmodel name="LoadBillOfMaterial" SubmodelRepositoryEndpoint="{config.AAS.SubmodelRepositoryEndpoint}" TargetIdShort="BillOfMaterial" />
+            <LoadCapabilityDescriptionSubmodel name="LoadCapabilityDescription" SubmodelRepositoryEndpoint="{config.AAS.SubmodelRepositoryEndpoint}" />
+            <SendProductSummaryLog name="PublishProductSummary" LogLevel="INFO" />
+          </Sequence>
+          <ForceFailure name="InitFailureHandler">
+            <SendLogMessage name="InitFailureLog" LogLevel="ERROR" Message="ProductAgent initialization failed" Topic="{config.Agent.AgentId}/logs" />
+          </ForceFailure>
+        </Fallback>
+      </Retry>
+
+      <Sequence name="PlanningPhase">
+        <SendProcessChainRequest name="SendProcessChainRequest" />
+        <WaitForMessage name="AwaitProcessChainResponse" ExpectedTypes="informConfirm,refusal" ExpectedConversationId="{ConversationId}" TimeoutSeconds="30000" />
+      </Sequence>
+    </Sequence>
+  </BehaviorTree>
+
+  <TreeNodesModel>
+    <Action ID="ReadConfig">
+      <input_port name="configPath" />
+    </Action>
+    <Action ID="ConnectToMessagingBroker">
+      <input_port name="BrokerHost" />
+      <input_port name="BrokerPort" />
+      <input_port name="DefaultTopic" />
+      <input_port name="TimeoutMs" />
+      <input_port name="ClientId" />
+    </Action>
+    <Decorator ID="Retry">
+      <input_port name="maxRetries" default="3" />
+      <input_port name="backoffMs" default="100" />
+      <input_port name="exponentialBackoff" default="true" />
+    </Decorator>
+    <Action ID="SetBlackboardValue">
+      <input_port name="Key" />
+      <input_port name="Value" />
+      <input_port name="ValueType" default="string" />
+    </Action>
+    <Action ID="ReadShell">
+      <input_port name="AgentId" />
+      <input_port name="ShellRepositoryEndpoint" />
+    </Action>
+    <Action ID="LoadProductIdentificationSubmodel">
+      <input_port name="SubmodelRepositoryEndpoint" />
+      <input_port name="TargetIdShort" />
+    </Action>
+    <Action ID="LoadBillOfMaterialSubmodel">
+      <input_port name="SubmodelRepositoryEndpoint" />
+      <input_port name="TargetIdShort" />
+    </Action>
+    <Action ID="LoadCapabilityDescriptionSubmodel">
+      <input_port name="SubmodelRepositoryEndpoint" />
+      <input_port name="TargetIdShort" />
+      <input_port name="SemanticIdFilter" />
+    </Action>
+    <Action ID="SendLogMessage">
+      <input_port name="LogLevel" />
+      <input_port name="Message" />
+      <input_port name="ModuleId" />
+      <input_port name="Topic" />
+    </Action>
+    <Decorator ID="ForceFailure" />
+    <Action ID="SendProcessChainRequest" />
+    <Action ID="WaitForMessage">
+      <input_port name="ExpectedType" />
+      <input_port name="ExpectedTypes" />
+      <input_port name="ExpectedSender" />
+      <input_port name="TimeoutSeconds" />
+      <input_port name="ExpectedConversationId" />
+    </Action>
+    <Action ID="SendProductSummaryLog">
+      <input_port name="Topic" />
+      <input_port name="LogLevel" default="INFO" />
+    </Action>
+  </TreeNodesModel>
+</root>

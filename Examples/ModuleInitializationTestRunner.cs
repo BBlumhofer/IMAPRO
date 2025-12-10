@@ -39,6 +39,9 @@ public class ModuleInitializationTestRunner
         Console.WriteLine($"   MQTT Broker: {mqttBroker}:{mqttPort}");
         Console.WriteLine();
         
+        // Shared BTContext (AgentId/Role can change based on config nodes)
+        var context = new BTContext();
+
         // MQTT Client erstellen (optional - nur wenn MQTT verfügbar)
         MessagingClient? messagingClient = null;
         try
@@ -56,17 +59,21 @@ public class ModuleInitializationTestRunner
         }
         Console.WriteLine();
         
-        // Logger mit MQTT-Integration erstellen
+        // Logger mit MQTT-Integration erstellen (AgentId/Role werden dynamisch aus dem Context gelesen)
         using var loggerFactory = LoggerFactory.Create(builder =>
         {
             // Standard-Log-Level auf Information setzen - Debug/Trace sind standardmäßig aus
             builder.SetMinimumLevel(LogLevel.Information);
-            builder.AddProvider(new MqttLoggerProvider(messagingClient, agentId, agentRole));
+            builder.AddProvider(new MqttLoggerProvider(
+                messagingClient,
+                () => context.AgentId,
+                () => context.AgentRole));
         });
         
         var logger = loggerFactory.CreateLogger<ModuleInitializationTestRunner>();
         
-        var context = new BTContext(loggerFactory.CreateLogger<BTContext>())
+        // BTContext Logger erst nach Factory-Erzeugung setzen
+        context = new BTContext(loggerFactory.CreateLogger<BTContext>())
         {
             AgentId = agentId,
             AgentRole = agentRole

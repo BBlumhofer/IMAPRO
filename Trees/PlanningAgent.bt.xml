@@ -3,8 +3,7 @@
   <BehaviorTree ID="PlanningAgent">
     <Sequence name="PlanningAgentRoot">
       <ConnectToMessagingBroker name="ConnectMqtt" BrokerHost="{config.MQTT.Broker}" BrokerPort="{config.MQTT.Port}" DefaultTopic="factory/agents/messages" TimeoutMs="10000" ClientId="{config.Agent.ModuleId}_PlanningAgent" />
-      <LoadProductionPlan name="LoadPlan" PlanId="Plan001" DefaultMachine="{config.Agent.ModuleId}" />
-
+      
       <Parallel name="PlanningParallel">
         <Repeat name="PlanOfferLoop" num_cycles="-1">
           <Fallback name="PlanOrRefusal">
@@ -37,7 +36,16 @@
         </Repeat>
 
         <Repeat name="DispatchLoop" num_cycles="-1">
-          <DispatchScheduledSteps name="DispatchScheduledSteps" />
+          <Fallback name="DispatchOrIdle">
+            <Sequence name="DispatchIfReady">
+              <SelectSchedulableAction name="SelectSchedulableAction" LeadTimeSeconds="0" />
+              <SendSkillRequest name="SendSkillRequest" ModuleId="{config.Agent.ModuleId}" />
+              <AwaitSkillResponse name="AwaitSkillResponse" ModuleId="{config.Agent.ModuleId}" TimeoutMs="10000" />
+              <ApplySkillResponse name="ApplySkillResponse" />
+              <Wait name="DispatchThrottle" DelayMs="200" />
+            </Sequence>
+            <Wait name="IdleWait" DelayMs="500" />
+          </Fallback>
         </Repeat>
       </Parallel>
     </Sequence>
@@ -55,10 +63,7 @@
       <input_port name="TimeoutMs"/>
       <input_port name="ClientId"/>
     </Action>
-    <Action ID="LoadProductionPlan">
-      <input_port name="PlanId"/>
-      <input_port name="DefaultMachine"/>
-    </Action>
+    <!-- LoadProductionPlan removed for PlanningAgent: plan should be provided by external planner -->
     <Action ID="SelectNextAction"/>
     <Action ID="SendSkillRequest">
       <input_port name="ModuleId"/>
@@ -100,6 +105,12 @@
     </Action>
     <Action ID="ApplyOfferDecision"/>
     <Action ID="DispatchScheduledSteps"/>
+    <Action ID="SelectSchedulableAction">
+      <input_port name="LeadTimeSeconds" default="0"/>
+    </Action>
+    <Action ID="Wait">
+      <input_port name="DelayMs" default="1000"/>
+    </Action>
     <Action ID="AwaitSkillResponse">
       <input_port name="ModuleId"/>
       <input_port name="TimeoutMs" default="200"/>

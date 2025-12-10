@@ -138,6 +138,9 @@ public class NodeRegistry
         Register<ConnectToModuleNode>();
         Register<CoupleModuleNode>();
         Register<EnsurePortsCoupledNode>();
+        Register<LoadProductIdentificationSubmodelNode>();
+        Register<LoadBillOfMaterialSubmodelNode>();
+        Register<LoadCapabilityDescriptionSubmodelNode>();
         
         // Locking Nodes
         Register<LockResourceNode>("LockResource");
@@ -148,6 +151,7 @@ public class NodeRegistry
         Register<SendMessageNode>();
         Register<SendLogMessageNode>();
         Register<SendConfigAsLogNode>();
+        Register<SendProductSummaryLogNode>();
         Register<WaitForMessageNode>();
         
         // Messaging Integration Nodes (Phase 3 - NEW)
@@ -156,6 +160,7 @@ public class NodeRegistry
         Register<UpdateInventoryNode>("UpdateInventory");
         Register<SendStateMessageNode>();
         Register<EnableStorageChangeMqttNode>();
+        Register<SendProcessChainRequestNode>();
         
         // Monitoring Nodes (bestehende)
         Register<ReadStorageNode>();

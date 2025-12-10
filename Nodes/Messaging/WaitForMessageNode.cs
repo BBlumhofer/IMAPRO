@@ -13,6 +13,7 @@ namespace MAS_BT.Nodes.Messaging;
 public class WaitForMessageNode : BTNode
 {
     public string? ExpectedType { get; set; } = null;
+    public string? ExpectedTypes { get; set; } = null;
     public string? ExpectedSender { get; set; } = null;
     public int TimeoutSeconds { get; set; } = 30;
     // Optional: wait for messages belonging to a specific conversation.
@@ -61,7 +62,8 @@ public class WaitForMessageNode : BTNode
                 {
                     bool matches = true;
 
-                    if (!string.IsNullOrEmpty(ExpectedType) && msg.Frame.Type != ExpectedType)
+                    var expectedTypes = ParseExpectedTypes();
+                    if (expectedTypes.Count > 0 && !expectedTypes.Contains(msg.Frame.Type, StringComparer.OrdinalIgnoreCase))
                         matches = false;
 
                     if (!string.IsNullOrEmpty(ExpectedSender) && 
@@ -112,5 +114,17 @@ public class WaitForMessageNode : BTNode
         _messageQueue.Clear();
         _subscribed = false;
         return Task.CompletedTask;
+    }
+
+    private List<string> ParseExpectedTypes()
+    {
+        var list = new List<string>();
+        if (!string.IsNullOrWhiteSpace(ExpectedType))
+            list.Add(ExpectedType);
+        if (!string.IsNullOrWhiteSpace(ExpectedTypes))
+        {
+            list.AddRange(ExpectedTypes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        }
+        return list;
     }
 }

@@ -23,6 +23,7 @@
 ## Verification
 - `dotnet build MAS-BT/MAS-BT.csproj -c Debug` succeeds (warnings above).
 - Example run: `dotnet run --Examples/ActionExecutionTest.bt.xml` (used during latest checks).
+ - Example run: `dotnet run -- Trees/PlanningAgent.bt.xml` or `dotnet run -- Examples/ActionExecutionTest.bt.xml` (used during latest checks). Note: `PlanningAgent` no longer loads a demo ProductionPlan; plans should be provided externally.
 - Lock-aware queue scenario: start the agent, intentionally release the module lock, publish a skill via `tests/mqtt_skill_request_publisher.py`, and observe the request waiting in the queue until the lock is granted again (no refusal/error spam).
 - SkillRequest publisher (`tests/mqtt_skill_request_publisher.py`) exercises BaSyx parsing and typed parameter handling.
 

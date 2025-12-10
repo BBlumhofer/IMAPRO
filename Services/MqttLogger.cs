@@ -14,21 +14,24 @@ namespace MAS_BT.Services;
 public class MqttLoggerProvider : ILoggerProvider
 {
     private readonly MessagingClient? _messagingClient;
-    private readonly string _agentId;
-    private readonly string _agentRole;
+    private readonly Func<string> _agentIdProvider;
+    private readonly Func<string> _agentRoleProvider;
     private readonly ConcurrentDictionary<string, MqttLogger> _loggers = new();
     
-    public MqttLoggerProvider(MessagingClient? messagingClient, string agentId, string agentRole = "ResourceHolon")
+    public MqttLoggerProvider(
+        MessagingClient? messagingClient,
+        Func<string> agentIdProvider,
+        Func<string> agentRoleProvider)
     {
         _messagingClient = messagingClient;
-        _agentId = agentId;
-        _agentRole = agentRole;
+        _agentIdProvider = agentIdProvider ?? throw new ArgumentNullException(nameof(agentIdProvider));
+        _agentRoleProvider = agentRoleProvider ?? throw new ArgumentNullException(nameof(agentRoleProvider));
     }
     
     public ILogger CreateLogger(string categoryName)
     {
         return _loggers.GetOrAdd(categoryName, name => 
-            new MqttLogger(name, _messagingClient, _agentId, _agentRole));
+            new MqttLogger(name, _messagingClient, _agentIdProvider, _agentRoleProvider));
     }
     
     public void Dispose()
@@ -44,15 +47,19 @@ public class MqttLogger : ILogger
 {
     private readonly string _categoryName;
     private readonly MessagingClient? _messagingClient;
-    private readonly string _agentId;
-    private readonly string _agentRole;
+    private readonly Func<string> _agentIdProvider;
+    private readonly Func<string> _agentRoleProvider;
     
-    public MqttLogger(string categoryName, MessagingClient? messagingClient, string agentId, string agentRole)
+    public MqttLogger(
+        string categoryName,
+        MessagingClient? messagingClient,
+        Func<string> agentIdProvider,
+        Func<string> agentRoleProvider)
     {
         _categoryName = categoryName;
         _messagingClient = messagingClient;
-        _agentId = agentId;
-        _agentRole = agentRole;
+        _agentIdProvider = agentIdProvider;
+        _agentRoleProvider = agentRoleProvider;
     }
     
     public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
@@ -92,8 +99,11 @@ public class MqttLogger : ILogger
     {
         try
         {
-            var i40Message = CreateI40LogMessage(logLevel, message);
-            var topic = $"{_agentId}/logs";
+            var agentId = _agentIdProvider();
+            var agentRole = _agentRoleProvider();
+
+            var i40Message = CreateI40LogMessage(logLevel, message, agentId, agentRole);
+            var topic = $"{agentId}/logs";
             await _messagingClient!.PublishAsync(i40Message, topic);
         }
         catch (Exception ex)
@@ -103,16 +113,16 @@ public class MqttLogger : ILogger
         }
     }
     
-    private I40Message CreateI40LogMessage(LogLevel logLevel, string message)
+    private I40Message CreateI40LogMessage(LogLevel logLevel, string message, string agentId, string agentRole)
     {
         var logCollection = new LogMessage(
             GetLogLevelName(logLevel),
             message,
-            _agentRole,
-            _agentId);
+            agentRole,
+            agentId);
 
         var builder = new I40MessageBuilder()
-            .From(_agentId, _agentRole)
+            .From(agentId, agentRole)
             .To("broadcast", string.Empty)
             .WithType(I40MessageTypes.INFORM)
             .WithConversationId(Guid.NewGuid().ToString())
