@@ -4,6 +4,7 @@ using MAS_BT.Serialization;
 using MAS_BT.Services;
 using System.Text.Json;
 using System.Linq;
+using System.IO;
 using UAClient.Client;
 using I40Sharp.Messaging;
 using I40Sharp.Messaging.Transport;
@@ -14,26 +15,32 @@ public class ModuleInitializationTestRunner
 {
     public static async Task Run(string[] args)
     {
-        Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
-        Console.WriteLine("║    MAS-BT: Module Initialization Test Debug Runner          ║");
-        Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
+        Console.WriteLine("╔════════════════════════════════════╗");
+        Console.WriteLine("║    MAS-BT: Agent Spwaner           ║");
+        Console.WriteLine("╚════════════════════════════════════╝");
         Console.WriteLine();
         
-        // Lade Config: wenn ein JSON-Pfad als erstes Argument übergeben wurde, verwende diesen
-        string? providedConfigPath = null;
-        if (args != null && args.Length > 0)
+        var (filteredArgs, spawnSubHolonsInTerminal) = ParseFlags(args);
+
+        // Lade Config: akzeptiere direkten Pfad oder Konfig-Namen (z.B. "P17")
+        var providedConfigPath = ResolveConfigPath(filteredArgs);
+        if (string.IsNullOrWhiteSpace(providedConfigPath) || !File.Exists(providedConfigPath))
         {
-            // akzeptiere z.B. `dotnet run -- configs/planning_agent.json`
-            providedConfigPath = args.Select(a => a?.Trim()).FirstOrDefault(a => !string.IsNullOrEmpty(a) && (a.EndsWith(".json", StringComparison.OrdinalIgnoreCase) || a.Contains("configs")) && File.Exists(a));
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("❌ Config nicht gefunden. Bitte explizit angeben (Pfad oder Name unter configs/...).");
+            Console.ResetColor();
+            return;
         }
 
         var config = LoadConfig(providedConfigPath);
         var opcuaEndpoint = GetConfigValue(config, "OPCUA.Endpoint", "opc.tcp://192.168.178.30:4849");
         var opcuaUsername = GetConfigValue(config, "OPCUA.Username", "orchestrator");
         var opcuaPassword = GetConfigValue(config, "OPCUA.Password", "orchestrator");
-        var moduleId = GetConfigValue(config, "Agent.ModuleId", "Module_Assembly_01");
         var agentId = GetConfigValue(config, "Agent.AgentId", "TestAgent");
         var agentRole = GetConfigValue(config, "Agent.Role", "ResourceHolon");
+        var moduleId = GetConfigValue(config, "Agent.ModuleId", null)
+                       ?? GetConfigValue(config, "Agent.ModuleName", null)
+                       ?? agentId;
         var mqttBroker = GetConfigValue(config, "MQTT.Broker", "localhost");
         var mqttPort = GetConfigInt(config, "MQTT.Port", 1883);
         var preconditionRetries = GetConfigInt(config, "Execution.MaxPreconditionRetries", 10);
@@ -68,14 +75,17 @@ public class ModuleInitializationTestRunner
         Console.WriteLine();
         
         // Logger mit MQTT-Integration erstellen (AgentId/Role werden dynamisch aus dem Context gelesen)
+        var publishLogs = GetConfigBool(config, "MQTT.PublishLogs", true);
+
         using var loggerFactory = LoggerFactory.Create(builder =>
         {
             // Standard-Log-Level auf Information setzen - Debug/Trace sind standardmäßig aus
             builder.SetMinimumLevel(LogLevel.Information);
             builder.AddProvider(new MqttLoggerProvider(
-                messagingClient,
+                publishLogs ? messagingClient : null,
                 () => context.AgentId,
-                () => context.AgentRole));
+                () => context.AgentRole,
+                publishLogs));
         });
         
         var logger = loggerFactory.CreateLogger<ModuleInitializationTestRunner>();
@@ -86,15 +96,17 @@ public class ModuleInitializationTestRunner
             AgentId = agentId,
             AgentRole = agentRole
         };
+
+        context.Set("config.Path", Path.GetFullPath(providedConfigPath));
         
         context.Set("config.OPCUA.Endpoint", opcuaEndpoint);
         context.Set("config.OPCUA.Username", opcuaUsername);
         context.Set("config.OPCUA.Password", opcuaPassword);
-        context.Set("config.Agent.ModuleId", moduleId);
+        context.Set("config.Agent.ModuleName", moduleId);
         context.Set("config.MQTT.Broker", mqttBroker);
         context.Set("config.MQTT.Port", mqttPort);
+        context.Set("SpawnSubHolonsInTerminal", spawnSubHolonsInTerminal);
         // Alias für Legacy-Nodes: einige Nodes lesen direkt 'ModuleId' aus dem Context
-        context.Set("ModuleId", moduleId);
         context.Set("AgentId", agentId);
 
         // Execution queue keeps full SkillRequests (conversation/product IDs stay intact)
@@ -118,28 +130,23 @@ public class ModuleInitializationTestRunner
         
         try
         {
-            // Bestimme Behavior-Tree-Pfad:
-            // 1. aus der geladenen Config (z.B. top-level "InitializationTree" oder unter "ProductAgent.InitializationTree")
-            // 2. falls keine Angabe in der Config vorhanden ist, versuche Pfad aus CLI-Argumenten (z.B. direkte BT-Datei)
-            // 3. Fallback: wähle eine tree-Datei basierend auf dem Config-Dateinamen (planning/execution/product)
+            // Bestimme Behavior-Tree-Pfad ausschließlich aus Config oder CLI-Angabe
             string? btFilePath = null;
 
             btFilePath = GetInitializationTreeFromConfig(config);
 
             if (string.IsNullOrWhiteSpace(btFilePath))
             {
-                btFilePath = ResolveBehaviorTreePath(args);
+                btFilePath = ResolveBehaviorTreePath(filteredArgs);
             }
 
-            if (string.IsNullOrWhiteSpace(btFilePath) && !string.IsNullOrWhiteSpace(providedConfigPath))
+            if (string.IsNullOrWhiteSpace(btFilePath))
             {
-                var lower = Path.GetFileName(providedConfigPath).ToLowerInvariant();
-                if (lower.Contains("planning")) btFilePath = "Trees/PlanningAgent.bt.xml";
-                else if (lower.Contains("execution") || lower.Contains("agent_execution") || lower.Contains("execution_agent")) btFilePath = "Trees/ExecutionAgent.bt.xml";
-                else if (lower.Contains("product")) btFilePath = "Trees/ProductAgentInitialization.bt.xml";
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("❌ Kein Behavior Tree angegeben (InitializationTree in Config oder .bt.xml als Argument).");
+                Console.ResetColor();
+                return;
             }
-
-            btFilePath ??= "Trees/Init_and_ExecuteSkill.bt.xml";
             
             if (!File.Exists(btFilePath))
             {
@@ -329,17 +336,14 @@ public class ModuleInitializationTestRunner
 
     private static Dictionary<string, object> LoadConfig(string? configPath)
     {
-        var path = string.IsNullOrWhiteSpace(configPath) ? "config.json" : configPath;
-
-        if (!File.Exists(path))
+        if (string.IsNullOrWhiteSpace(configPath) || !File.Exists(configPath))
         {
-            Console.WriteLine($"⚠️  Config nicht gefunden: {path}, verwende Defaults");
-            return new Dictionary<string, object>();
+            throw new FileNotFoundException("Config file is required", configPath ?? string.Empty);
         }
 
         try
         {
-            var json = File.ReadAllText(path);
+            var json = File.ReadAllText(configPath);
             var config = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
 
             var result = new Dictionary<string, object>();
@@ -355,9 +359,86 @@ public class ModuleInitializationTestRunner
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"⚠️  Fehler beim Laden von {path}: {ex.Message}");
-            return new Dictionary<string, object>();
+            Console.WriteLine($"⚠️  Fehler beim Laden von {configPath}: {ex.Message}");
+            throw;
         }
+    }
+
+    private static (string[] filteredArgs, bool spawnSubHolonsInTerminal) ParseFlags(string[] args)
+    {
+        if (args == null || args.Length == 0) return (Array.Empty<string>(), false);
+
+        var list = new List<string>();
+        var spawnFlag = false;
+
+        foreach (var arg in args)
+        {
+            if (string.Equals(arg, "--spawn-terminal", StringComparison.OrdinalIgnoreCase))
+            {
+                spawnFlag = true;
+                continue;
+            }
+
+            list.Add(arg);
+        }
+
+        return (list.ToArray(), spawnFlag);
+    }
+
+    private static string? ResolveConfigPath(string[]? args)
+    {
+        if (args != null)
+        {
+            // 1) direct existing file argument
+            var direct = args
+                .Select(a => a?.Trim())
+                .FirstOrDefault(a => !string.IsNullOrEmpty(a) && (a.EndsWith(".json", StringComparison.OrdinalIgnoreCase) || a.Contains("configs")) && File.Exists(a));
+            if (!string.IsNullOrWhiteSpace(direct))
+                return direct;
+
+            // 2) name argument like "P17" or "P17.json" → try well-known locations
+            var nameArg = args.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a));
+            if (!string.IsNullOrWhiteSpace(nameArg))
+            {
+                // If the argument already looks like a path (contains directory separators), resolve it directly first.
+                if (nameArg.Contains(Path.DirectorySeparatorChar) || nameArg.Contains(Path.AltDirectorySeparatorChar))
+                {
+                    var pathCandidate = Path.GetFullPath(nameArg);
+                    if (File.Exists(pathCandidate))
+                        return pathCandidate;
+                }
+
+                var baseName = nameArg.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? nameArg : nameArg + ".json";
+                var searchName = Path.GetFileName(baseName); // avoid passing directory segments into search patterns
+
+                var candidates = new List<string>
+                {
+                    Path.Combine("configs", searchName),
+                    Path.Combine("configs", "specific_configs", "Module_configs", searchName),
+                    Path.Combine("configs", "generic_configs", searchName)
+                };
+
+                // search recursively under configs for the basename to catch other folders
+                if (Directory.Exists("configs"))
+                {
+                    var found = Directory.GetFiles("configs", searchName, SearchOption.AllDirectories).FirstOrDefault();
+                    if (!string.IsNullOrWhiteSpace(found))
+                    {
+                        candidates.Insert(0, found);
+                    }
+                }
+
+                foreach (var c in candidates)
+                {
+                    var full = Path.GetFullPath(c);
+                    if (File.Exists(full))
+                        return full;
+                }
+            }
+        }
+
+        // fallback to default
+        return null;
     }
 
     private static string? GetInitializationTreeFromConfig(Dictionary<string, object> config)
@@ -398,6 +479,11 @@ public class ModuleInitializationTestRunner
         foreach (var rawArg in args)
         {
             if (string.IsNullOrWhiteSpace(rawArg) || rawArg == "--")
+                continue;
+
+            // Ignore obvious config files so the first arg (config path) is not mistaken as BT file
+            var lower = rawArg.Trim().ToLowerInvariant();
+            if (lower.EndsWith(".json") || lower.Contains("config"))
                 continue;
 
             foreach (var candidate in BuildPathCandidates(rawArg))
@@ -519,6 +605,55 @@ public class ModuleInitializationTestRunner
         }
         
         return int.TryParse(current?.ToString() ?? "", out var parsed) ? parsed : defaultValue;
+    }
+
+    private static bool GetConfigBool(Dictionary<string, object> config, string path, bool defaultValue)
+    {
+        var parts = path.Split('.');
+        object? current = config;
+
+        foreach (var part in parts)
+        {
+            if (current is Dictionary<string, object> dict && dict.TryGetValue(part, out var value))
+            {
+                current = value;
+            }
+            else if (current is JsonElement element && element.ValueKind == JsonValueKind.Object)
+            {
+                if (element.TryGetProperty(part, out var prop))
+                {
+                    current = prop;
+                }
+                else
+                {
+                    return defaultValue;
+                }
+            }
+            else
+            {
+                return defaultValue;
+            }
+        }
+
+        if (current is JsonElement jsonElem)
+        {
+            if (jsonElem.ValueKind == JsonValueKind.True) return true;
+            if (jsonElem.ValueKind == JsonValueKind.False) return false;
+            if (jsonElem.ValueKind == JsonValueKind.String)
+                return bool.TryParse(jsonElem.GetString(), out var b) ? b : defaultValue;
+        }
+
+        if (current is bool bVal)
+        {
+            return bVal;
+        }
+
+        if (current != null && bool.TryParse(current.ToString(), out var parsed))
+        {
+            return parsed;
+        }
+
+        return defaultValue;
     }
     
     private static void PrintContextState(BTContext context)

@@ -8,16 +8,16 @@
         BrokerPort="{config.MQTT.Port}"
         DefaultTopic="factory/agents/messages"
         TimeoutMs="10000"
-        ClientId="{config.Agent.ModuleId}_PlanningAgent" />
+        ClientId="{config.Agent.ModuleName}_PlanningAgent" />
 
-      <LoadProductionPlan name="LoadPlan" PlanId="DispatchPlan" DefaultMachine="{config.Agent.ModuleId}" />
+      <LoadProductionPlan name="LoadPlan" PlanId="DispatchPlan" DefaultMachine="{config.Agent.ModuleName}" />
 
       <Repeat name="DispatchLoop" num_cycles="-1">
         <Fallback name="DispatchOrIdle">
           <Sequence name="DispatchIfReady">
             <SelectSchedulableAction name="SelectSchedulableAction" LeadTimeSeconds="0" />
-            <SendSkillRequest name="SendSkillRequest" ModuleId="{config.Agent.ModuleId}" />
-              <AwaitSkillResponse name="AwaitSkillResponse" ModuleId="{config.Agent.ModuleId}" TimeoutMs="10000" />
+            <SendSkillRequest name="SendSkillRequest" ModuleId="{config.Agent.ModuleName}" />
+              <AwaitSkillResponse name="AwaitSkillResponse" ModuleId="{config.Agent.ModuleName}" TimeoutMs="10000" />
               <ApplySkillResponse name="ApplySkillResponse" />
             <Wait name="DispatchThrottle" DelayMs="200" />
           </Sequence>

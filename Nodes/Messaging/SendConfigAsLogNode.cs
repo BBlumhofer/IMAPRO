@@ -34,7 +34,7 @@ public class SendConfigAsLogNode : BTNode
             // Lese Config-Werte aus Context
             var endpoint = Context.Get<string>("config.OPCUA.Endpoint");
             var username = Context.Get<string>("config.OPCUA.Username");
-            var moduleId = Context.Get<string>("config.Agent.ModuleId");
+            var moduleId = Context.Get<string>("config.Agent.ModuleName");
 
             if (!string.IsNullOrEmpty(endpoint))
             {

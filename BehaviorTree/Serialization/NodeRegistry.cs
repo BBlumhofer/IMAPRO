@@ -177,6 +177,7 @@ public class NodeRegistry
         Register<ReplyToDispatcherNode>("ReplyToDispatcher");
         Register<WaitForSubHolonRegisterNode>("WaitForSubHolonRegister");
         Register<SpawnSubHolonsNode>("SpawnSubHolons");
+        Register<RegisterSubHolonNode>("RegisterSubHolon");
         
         // Monitoring Nodes (bestehende)
         Register<ReadStorageNode>();

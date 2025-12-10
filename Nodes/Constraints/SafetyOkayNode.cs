@@ -37,59 +37,45 @@ public class SafetyOkayNode : BTNode
         
         try
         {
-            var safetyStatus = new SafetyStatusInfo();
-            
             // 1. Emergency Stop prüfen
-            safetyStatus.EmergencyStopActive = await CheckEmergencyStop(moduleId);
-            if (safetyStatus.EmergencyStopActive)
+            if (await CheckEmergencyStop(moduleId))
             {
                 Logger.LogError("SafetyOkay: EMERGENCY STOP active in module '{ModuleId}'!", moduleId);
                 Context.Set($"safety_ok_{zoneId}", false);
-                Context.Set($"safety_status_{zoneId}", safetyStatus);
                 return NodeStatus.Failure;
             }
-            
+
             // 2. Safety Gate prüfen
-            safetyStatus.SafetyGateOpen = await CheckSafetyGate(zoneId);
-            if (safetyStatus.SafetyGateOpen && CriticalCheck)
+            if (CriticalCheck && await CheckSafetyGate(zoneId))
             {
                 Logger.LogWarning("SafetyOkay: Safety gate OPEN in zone '{ZoneId}'", zoneId);
                 Context.Set($"safety_ok_{zoneId}", false);
-                Context.Set($"safety_status_{zoneId}", safetyStatus);
                 return NodeStatus.Failure;
             }
-            
+
             // 3. Light Curtain prüfen
-            safetyStatus.LightCurtainInterrupted = await CheckLightCurtain(zoneId);
-            if (safetyStatus.LightCurtainInterrupted && CriticalCheck)
+            if (CriticalCheck && await CheckLightCurtain(zoneId))
             {
                 Logger.LogWarning("SafetyOkay: Light curtain interrupted in zone '{ZoneId}'", zoneId);
                 Context.Set($"safety_ok_{zoneId}", false);
-                Context.Set($"safety_status_{zoneId}", safetyStatus);
                 return NodeStatus.Failure;
             }
-            
+
             // 4. Safety PLC Status prüfen
-            safetyStatus.SafetyPlcOk = await CheckSafetyPlcStatus(moduleId);
-            if (!safetyStatus.SafetyPlcOk)
+            if (!await CheckSafetyPlcStatus(moduleId))
             {
                 Logger.LogError("SafetyOkay: Safety PLC reports unsafe condition in module '{ModuleId}'", moduleId);
                 Context.Set($"safety_ok_{zoneId}", false);
-                Context.Set($"safety_status_{zoneId}", safetyStatus);
                 return NodeStatus.Failure;
             }
-            
+
             // 5. Operator Mode prüfen (manueller Modus kann Einschränkungen haben)
-            safetyStatus.OperatorModeActive = await CheckOperatorMode(moduleId);
-            if (safetyStatus.OperatorModeActive)
+            if (await CheckOperatorMode(moduleId))
             {
                 Logger.LogInformation("SafetyOkay: Operator mode active in module '{ModuleId}' - reduced speed required", moduleId);
             }
-            
-            safetyStatus.IsSafe = true;
+
             Context.Set($"safety_ok_{zoneId}", true);
-            Context.Set($"safety_status_{zoneId}", safetyStatus);
-            
             Logger.LogInformation("SafetyOkay: Zone '{ZoneId}' is SAFE", zoneId);
             return NodeStatus.Success;
         }
@@ -152,17 +138,4 @@ public class SafetyOkayNode : BTNode
         }
         return Task.FromResult(false);
     }
-}
-
-/// <summary>
-/// Detaillierter Safety-Status für Context
-/// </summary>
-public class SafetyStatusInfo
-{
-    public bool IsSafe { get; set; }
-    public bool EmergencyStopActive { get; set; }
-    public bool SafetyGateOpen { get; set; }
-    public bool LightCurtainInterrupted { get; set; }
-    public bool SafetyPlcOk { get; set; }
-    public bool OperatorModeActive { get; set; }
 }

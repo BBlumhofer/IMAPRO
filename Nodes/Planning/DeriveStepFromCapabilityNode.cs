@@ -24,11 +24,10 @@ public class DeriveStepFromCapabilityNode : BTNode
         var action = Context.Get<ActionModel>("CurrentPlanAction");
         var step = Context.Get<StepModel>("CurrentPlanStep");
 
-        if (action == null)
+        if (action == null || string.IsNullOrWhiteSpace(matched))
         {
-            Logger.LogError("DeriveStepFromCapability: no CurrentPlanAction in context");
-            Context.Set("RefusalReason", RefusalReason);
-            return Task.FromResult(NodeStatus.Failure);
+            // No active action/capability yet; keep waiting silently
+            return Task.FromResult(NodeStatus.Running);
         }
 
         // Stub: use existing step if available; otherwise create a lightweight one

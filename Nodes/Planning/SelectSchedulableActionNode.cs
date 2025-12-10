@@ -25,9 +25,8 @@ public class SelectSchedulableActionNode : BTNode
         var plan = Context.Get<ProductionPlan>("ProductionPlan");
         if (plan == null || plan.Steps.Count == 0)
         {
-            Logger.LogWarning("SelectSchedulableAction: missing ProductionPlan or no steps available");
             Context.Set("DispatchReady", false);
-            return Task.FromResult(NodeStatus.Failure);
+            return Task.FromResult(NodeStatus.Running);
         }
 
         var referenceTime = Context.Get<DateTime?>("SchedulingReferenceTimeUtc") ?? DateTime.UtcNow;
@@ -49,7 +48,7 @@ public class SelectSchedulableActionNode : BTNode
         if (candidate == null)
         {
             Context.Set("DispatchReady", false);
-            return Task.FromResult(NodeStatus.Failure);
+            return Task.FromResult(NodeStatus.Running);
         }
 
         Context.Set("CurrentPlanStep", candidate.step);

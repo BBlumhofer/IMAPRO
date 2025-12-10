@@ -19,9 +19,8 @@ public class CapabilityMatchmakingNode : BTNode
         var capability = ResolvePlaceholders(RequiredCapability);
         if (string.IsNullOrWhiteSpace(capability))
         {
-            Logger.LogWarning("CapabilityMatchmaking: no capability provided, failing matchmaking");
-            Context.Set("RefusalReason", RefusalReason);
-            return Task.FromResult(NodeStatus.Failure);
+            // wait until a capability is provided
+            return Task.FromResult(NodeStatus.Running);
         }
 
         // Stub success: store capability as matched

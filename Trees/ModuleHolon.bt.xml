@@ -2,17 +2,17 @@
 <root BTCPP_format="4" main_tree_to_execute="ModuleHolon">
   <BehaviorTree ID="ModuleHolon">
     <Sequence name="ModuleHolonRoot">
-      <ReadConfig name="LoadConfig" configPath="configs/module_holon.json" />
+      <ReadConfig name="LoadConfig" configPath="{config.Path}" />
       <SetBlackboardValue name="BindAgentId" Key="AgentId" Value="{config.Agent.AgentId}" />
       <SetBlackboardValue name="BindAgentRole" Key="AgentRole" Value="{config.Agent.Role}" />
-      <SetBlackboardValue name="BindModuleId" Key="ModuleId" Value="{config.Agent.ModuleId}" />
+      <SetBlackboardValue name="BindModuleId" Key="ModuleId" Value="{config.Agent.ModuleName}" />
       <SetBlackboardValue name="BindNamespace" Key="Namespace" Value="{config.Namespace}" />
 
       <ConnectToMessagingBroker
         name="ConnectMqtt"
         BrokerHost="{config.MQTT.Broker}"
         BrokerPort="{config.MQTT.Port}"
-        DefaultTopic="{config.MQTT.TopicPrefix}/moduleholon"
+        DefaultTopic="/{config.Namespace}/{config.Agent.ModuleName}"
         TimeoutMs="10000"
         ClientId="{config.Agent.AgentId}_ModuleHolon" />
 
@@ -26,9 +26,9 @@
           <Fallback name="OfferOrIdle">
             <Sequence name="HandleOffer">
               <WaitForMessage name="AwaitOffer" ExpectedTypes="callForProposal,offerRequest" TimeoutSeconds="10" />
-              <ForwardToInternal name="ForwardOffer" TargetTopic="/ModuleHolon/{ModuleId}/Planning/OfferRequest" />
+              <ForwardToInternal name="ForwardOffer" TargetTopic="/{Namespace}/{ModuleId}/PlanningAgent/OfferRequest" />
               <WaitForInternalResponse name="AwaitOfferResp" TimeoutSeconds="10" />
-              <ReplyToDispatcher name="ReplyOffer" ResponseTopicTemplate="/DispatchingAgent/{Namespace}/ModuleOffers/{ModuleId}/Response/" />
+              <ReplyToDispatcher name="ReplyOffer" ResponseTopicTemplate="/{Namespace}/DispatchingAgent/Offers" />
               <Wait name="OfferIdle" DelayMs="150" />
             </Sequence>
             <Wait name="OfferBackoff" DelayMs="200" />
@@ -39,9 +39,9 @@
           <Fallback name="ScheduleOrIdle">
             <Sequence name="HandleSchedule">
               <WaitForMessage name="AwaitSchedule" ExpectedTypes="scheduleAction" TimeoutSeconds="10" />
-              <ForwardToInternal name="ForwardSchedule" TargetTopic="/ModuleHolon/{ModuleId}/Planning/ScheduleAction" />
+              <ForwardToInternal name="ForwardSchedule" TargetTopic="/{Namespace}/{ModuleId}/PlanningAgent/ScheduleAction" />
               <WaitForInternalResponse name="AwaitScheduleResp" TimeoutSeconds="10" />
-              <ReplyToDispatcher name="ReplySchedule" ResponseTopicTemplate="/Modules/{ModuleId}/BookingConfirmation/" />
+              <ReplyToDispatcher name="ReplySchedule" ResponseTopicTemplate="/{Namespace}/{ModuleId}/BookingConfirmation" />
               <Wait name="ScheduleIdle" DelayMs="200" />
             </Sequence>
             <Wait name="ScheduleBackoff" DelayMs="200" />
@@ -52,9 +52,9 @@
           <Fallback name="TransportOrIdle">
             <Sequence name="HandleTransport">
               <WaitForMessage name="AwaitTransport" ExpectedTypes="transportRequest,requestTransportPlan" TimeoutSeconds="10" />
-              <ForwardToInternal name="ForwardTransport" TargetTopic="/ModuleHolon/{ModuleId}/Planning/TransportRequest" />
+              <ForwardToInternal name="ForwardTransport" TargetTopic="/{Namespace}/{ModuleId}/PlanningAgent/TransportRequest" />
               <WaitForInternalResponse name="AwaitTransportResp" TimeoutSeconds="10" />
-              <ReplyToDispatcher name="ReplyTransport" ResponseTopicTemplate="/Modules/{ModuleId}/TransportPlan/" />
+              <ReplyToDispatcher name="ReplyTransport" ResponseTopicTemplate="/{Namespace}/{ModuleId}/TransportPlan" />
               <Wait name="TransportIdle" DelayMs="200" />
             </Sequence>
             <Wait name="TransportBackoff" DelayMs="200" />

@@ -2,9 +2,18 @@
 <root BTCPP_format="4" main_tree_to_execute="PlanningAgent">
   <BehaviorTree ID="PlanningAgent">
     <Sequence name="PlanningAgentRoot">
-      <ConnectToMessagingBroker name="ConnectMqtt" BrokerHost="{config.MQTT.Broker}" BrokerPort="{config.MQTT.Port}" DefaultTopic="factory/agents/messages" TimeoutMs="10000" ClientId="{config.Agent.ModuleId}_PlanningAgent" />
+      <ConnectToMessagingBroker name="ConnectMqtt" BrokerHost="{config.MQTT.Broker}" BrokerPort="{config.MQTT.Port}" DefaultTopic="factory/agents/messages" TimeoutMs="10000" ClientId="{config.Agent.ModuleName}_PlanningAgent" />
+      <SetBlackboardValue name="SetPlanningRole" Key="AgentRole" Value="PlanningAgent" />
+      <SetBlackboardValue name="SetPlanningId" Key="AgentId" Value="{config.Agent.ModuleName}_Planning" />
+      <RegisterSubHolon name="RegisterPlanning" />
       
       <Parallel name="PlanningParallel">
+        <Repeat name="RegistrationHeartbeat" num_cycles="-1">
+          <Sequence name="RegistrationBeat">
+            <RegisterSubHolon name="RegisterPlanningHeartbeat" />
+            <Wait name="RegistrationWait" DelayMs="5000" />
+          </Sequence>
+        </Repeat>
         <Repeat name="PlanOfferLoop" num_cycles="-1">
           <Fallback name="PlanOrRefusal">
             <Sequence name="PlanSequence">
@@ -13,7 +22,7 @@
               <FeedbackCapabilityMatchmaking name="MatchFeedback" />
               <DeriveStepFromCapability name="DeriveStep" />
               <CheckConstraints name="CheckConstraints" />
-              <RequestTransport name="RequestTransport" FromStation="{config.Agent.ModuleId}" ToStation="{TransportTarget}" />
+              <RequestTransport name="RequestTransport" FromStation="{config.Agent.ModuleName}" ToStation="{TransportTarget}" />
               <EvaluateRequestTransportResponse name="EvalTransport" />
               <FeasibilityCheck name="FeasibilityCheck" />
               <SchedulingExecute name="RunScheduling" Capability="{MatchedCapability}" />
@@ -21,7 +30,7 @@
               <CheckScheduleFeasibility name="CheckScheduleFeasibility" />
               <CalculateOffer name="CalculateOffer" />
               <SendOffer name="SendOffer" ReceiverId="ProductAgent" />
-              <UpdateMachineSchedule name="UpdateSchedule" ModuleId="{config.Agent.ModuleId}" />
+              <UpdateMachineSchedule name="UpdateSchedule" ModuleId="{config.Agent.ModuleName}" />
             </Sequence>
             <SendPlanningRefusal name="SendRefusal" Reason="{RefusalReason}" ReceiverId="ProductAgent" />
           </Fallback>
@@ -39,8 +48,8 @@
           <Fallback name="DispatchOrIdle">
             <Sequence name="DispatchIfReady">
               <SelectSchedulableAction name="SelectSchedulableAction" LeadTimeSeconds="0" />
-              <SendSkillRequest name="SendSkillRequest" ModuleId="{config.Agent.ModuleId}" />
-              <AwaitSkillResponse name="AwaitSkillResponse" ModuleId="{config.Agent.ModuleId}" TimeoutMs="10000" />
+              <SendSkillRequest name="SendSkillRequest" ModuleId="{config.Agent.ModuleName}" />
+              <AwaitSkillResponse name="AwaitSkillResponse" ModuleId="{config.Agent.ModuleName}" TimeoutMs="10000" />
               <ApplySkillResponse name="ApplySkillResponse" />
               <Wait name="DispatchThrottle" DelayMs="200" />
             </Sequence>
@@ -63,6 +72,12 @@
       <input_port name="TimeoutMs"/>
       <input_port name="ClientId"/>
     </Action>
+    <Action ID="SetBlackboardValue">
+      <input_port name="Key" />
+      <input_port name="Value" />
+      <input_port name="ValueType" default="string" />
+    </Action>
+    <Action ID="RegisterSubHolon" />
     <!-- LoadProductionPlan removed for PlanningAgent: plan should be provided by external planner -->
     <Action ID="SelectNextAction"/>
     <Action ID="SendSkillRequest">

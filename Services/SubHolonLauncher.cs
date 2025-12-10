@@ -1,0 +1,158 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using Microsoft.Extensions.Logging;
+
+namespace MAS_BT.Services;
+
+public record SubHolonLaunchSpec(string? TreePath, string ConfigPath, string ModuleId, string? AgentId);
+
+public interface ISubHolonLauncher
+{
+    Task LaunchAsync(SubHolonLaunchSpec spec, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Default launcher: starts a new MAS-BT process for each sub-holon using the provided config/tree.
+/// </summary>
+public class ProcessSubHolonLauncher : ISubHolonLauncher
+{
+    private readonly ILogger _logger;
+    private readonly bool _launchInTerminal;
+
+    public ProcessSubHolonLauncher(ILogger logger, bool launchInTerminal = false)
+    {
+        _logger = logger;
+        _launchInTerminal = launchInTerminal;
+    }
+
+    public Task LaunchAsync(SubHolonLaunchSpec spec, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var configPath = Path.GetFullPath(spec.ConfigPath);
+            var treePath = spec.TreePath != null ? Path.GetFullPath(spec.TreePath) : null;
+
+            var projectPath = File.Exists("MAS-BT.csproj")
+                ? Path.GetFullPath("MAS-BT.csproj")
+                : File.Exists(Path.Combine("MAS-BT", "MAS-BT.csproj"))
+                    ? Path.GetFullPath(Path.Combine("MAS-BT", "MAS-BT.csproj"))
+                    : null;
+
+            var args = projectPath != null
+                ? treePath != null
+                    ? $"run --project \"{projectPath}\" --example module-init-test -- \"{configPath}\" \"{treePath}\""
+                    : $"run --project \"{projectPath}\" --example module-init-test -- \"{configPath}\""
+                : treePath != null
+                    ? $"run --example module-init-test -- \"{configPath}\" \"{treePath}\""
+                    : $"run --example module-init-test -- \"{configPath}\"";
+
+            var psi = BuildProcessStartInfo(args, spec);
+
+            var proc = Process.Start(psi);
+            if (proc != null && !_launchInTerminal)
+            {
+                proc.OutputDataReceived += (_, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                        _logger.LogInformation("[SubHolon:{ModuleId}] {Line}", spec.ModuleId, e.Data);
+                };
+                proc.ErrorDataReceived += (_, e) =>
+                {
+                    if (!string.IsNullOrEmpty(e.Data))
+                        _logger.LogWarning("[SubHolon:{ModuleId}] {Line}", spec.ModuleId, e.Data);
+                };
+
+                proc.BeginOutputReadLine();
+                proc.BeginErrorReadLine();
+            }
+
+            _logger.LogInformation("SpawnSubHolons: started sub-holon process for {Tree} with config {Config}", treePath, configPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "SpawnSubHolons: failed to launch sub-holon for {TreePath}", spec.TreePath);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private ProcessStartInfo BuildProcessStartInfo(string dotnetArgs, SubHolonLaunchSpec spec)
+    {
+        if (!_launchInTerminal)
+        {
+            return new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = dotnetArgs,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+        }
+
+        var terminal = FindTerminalCommand();
+        if (terminal == null)
+        {
+            _logger.LogWarning("SpawnSubHolons: no terminal emulator found; falling back to background process for {ModuleId}", spec.ModuleId);
+            return new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = dotnetArgs,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+        }
+
+        var shellCmd = $"dotnet {dotnetArgs}";
+        var (terminalExe, terminalArgs) = terminal.Value;
+
+        return new ProcessStartInfo
+        {
+            FileName = terminalExe,
+            Arguments = string.Format(terminalArgs, shellCmd),
+            UseShellExecute = false,
+            RedirectStandardOutput = false,
+            RedirectStandardError = false,
+            CreateNoWindow = false
+        };
+    }
+
+    private static (string exe, string args)? FindTerminalCommand()
+    {
+        var candidates = new[]
+        {
+            ("x-terminal-emulator", "-e {0}"),
+            ("gnome-terminal", "-- bash -c \"{0}; exec bash\""),
+            ("konsole", "-e {0}"),
+            ("xfce4-terminal", "-e {0}"),
+            ("xterm", "-e {0}")
+        };
+
+        foreach (var (exe, args) in candidates)
+        {
+            if (IsOnPath(exe))
+            {
+                return (exe, args);
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsOnPath(string command)
+    {
+        var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+        var parts = path.Split(':');
+        foreach (var p in parts)
+        {
+            var candidate = Path.Combine(p, command);
+            if (File.Exists(candidate)) return true;
+        }
+
+        return false;
+    }
+}

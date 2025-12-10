@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using MAS_BT.Core;
 using System.Globalization;
 using System.Text.Json;
+using System.IO;
 
 namespace MAS_BT.Nodes.Configuration;
 
@@ -22,12 +23,19 @@ public class ReadConfigNode : BTNode
         
         try
         {
-            if (!File.Exists(ConfigPath))
+            var resolvedPath = string.IsNullOrWhiteSpace(ConfigPath)
+                ? "config.json"
+                : ConfigPath;
+
+            // store the resolved path for downstream consumers (e.g., sub-holon spawning)
+            Context.Set("config.Path", Path.GetFullPath(resolvedPath));
+
+            if (!File.Exists(resolvedPath))
             {
-                Logger.LogWarning("ReadConfig: Configuration file not found: {ConfigPath}", ConfigPath);
+                Logger.LogWarning("ReadConfig: Configuration file not found: {ConfigPath}", resolvedPath);
                 return NodeStatus.Failure;
             }
-            var jsonContent = await File.ReadAllTextAsync(ConfigPath);
+            var jsonContent = await File.ReadAllTextAsync(resolvedPath);
             var config = JsonSerializer.Deserialize<JsonElement>(jsonContent);
             
             Context.Set("config", config);
@@ -37,10 +45,10 @@ public class ReadConfigNode : BTNode
             }
             else
             {
-                Logger.LogWarning("ReadConfig: Expected root object in configuration file {ConfigPath}", ConfigPath);
+                Logger.LogWarning("ReadConfig: Expected root object in configuration file {ConfigPath}", resolvedPath);
             }
             
-            Logger.LogInformation("ReadConfig: Successfully loaded configuration from {ConfigPath}", ConfigPath);
+            Logger.LogInformation("ReadConfig: Successfully loaded configuration from {ConfigPath}", resolvedPath);
             
             return NodeStatus.Success;
         }

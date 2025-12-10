@@ -1,0 +1,35 @@
+{
+  "Agent": {
+    "AgentId": "P17",
+    "ModuleName":"CA-Module",
+    "Role": "ModuleHolon",
+    "LogLevel": "Information",
+    "InitializationTree": "Trees/ModuleHolon.bt.xml"
+  },
+  "SubHolons": ["P17_Execution_agent","P17_planning_agent"],
+  "AAS": {
+    "SubmodelRepositoryEndpoint": "http://localhost:8080/submodels",
+    "ShellRepositoryEndpoint": "http://localhost:8080/shells",
+    "Timeout": 10000
+  },
+  "MQTT": {
+    "Broker": "localhost",
+    "BrokerAddress": "localhost",
+    "Port": 1883,
+    "Username": "mqttuser",
+    "Password": "mqttpass",
+    "UseTLS": false,
+    "UseAuth": false,
+    "QoS": 1,
+    "RetainMessages": false,
+    "KeepAliveInterval": 60,
+    "ReconnectDelay": 5000,
+    "PublishLogs": false
+  },
+  "Namespace": "phuket",
+  "TimeSynchronization": {
+    "NTPServer": "time.google.com",
+    "MaxDriftMs": 1000,
+    "SyncIntervalMs": 300000
+  }
+}

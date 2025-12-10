@@ -16,22 +16,25 @@ public class MqttLoggerProvider : ILoggerProvider
     private readonly MessagingClient? _messagingClient;
     private readonly Func<string> _agentIdProvider;
     private readonly Func<string> _agentRoleProvider;
+    private readonly bool _publishLogs;
     private readonly ConcurrentDictionary<string, MqttLogger> _loggers = new();
     
     public MqttLoggerProvider(
         MessagingClient? messagingClient,
         Func<string> agentIdProvider,
-        Func<string> agentRoleProvider)
+        Func<string> agentRoleProvider,
+        bool publishLogs = true)
     {
         _messagingClient = messagingClient;
         _agentIdProvider = agentIdProvider ?? throw new ArgumentNullException(nameof(agentIdProvider));
         _agentRoleProvider = agentRoleProvider ?? throw new ArgumentNullException(nameof(agentRoleProvider));
+        _publishLogs = publishLogs;
     }
     
     public ILogger CreateLogger(string categoryName)
     {
         return _loggers.GetOrAdd(categoryName, name => 
-            new MqttLogger(name, _messagingClient, _agentIdProvider, _agentRoleProvider));
+            new MqttLogger(name, _messagingClient, _agentIdProvider, _agentRoleProvider, _publishLogs));
     }
     
     public void Dispose()
@@ -49,17 +52,20 @@ public class MqttLogger : ILogger
     private readonly MessagingClient? _messagingClient;
     private readonly Func<string> _agentIdProvider;
     private readonly Func<string> _agentRoleProvider;
+    private readonly bool _publishLogs;
     
     public MqttLogger(
         string categoryName,
         MessagingClient? messagingClient,
         Func<string> agentIdProvider,
-        Func<string> agentRoleProvider)
+        Func<string> agentRoleProvider,
+        bool publishLogs)
     {
         _categoryName = categoryName;
         _messagingClient = messagingClient;
         _agentIdProvider = agentIdProvider;
         _agentRoleProvider = agentRoleProvider;
+        _publishLogs = publishLogs;
     }
     
     public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
@@ -89,7 +95,7 @@ public class MqttLogger : ILogger
         }
         
         // MQTT-Output (Debug and above)
-        if (logLevel >= LogLevel.Debug && _messagingClient != null && _messagingClient.IsConnected)
+        if (_publishLogs && logLevel >= LogLevel.Debug && _messagingClient != null && _messagingClient.IsConnected)
         {
             _ = SendLogMessageAsync(logLevel, message);
         }

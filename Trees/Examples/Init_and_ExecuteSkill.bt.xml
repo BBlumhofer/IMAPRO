@@ -31,18 +31,18 @@
       <Sequence name="InitialLockAndStartup">
         <LockResource
           name="InitialLock"
-          ModuleName="{config.Agent.ModuleId}"
-          ResourceId="{config.Agent.ModuleId}"
+          ModuleName="{config.Agent.ModuleName}"
+          ResourceId="{config.Agent.ModuleName}"
           TimeoutSeconds="30" />
 
         <CheckLockedState
           name="VerifyInitialLock"
-          ModuleName="{config.Agent.ModuleId}"
+          ModuleName="{config.Agent.ModuleName}"
           ExpectLocked="true" />
 
         <ExecuteSkill
           name="ExecuteStartup"
-          ModuleName="{config.Agent.ModuleId}"
+          ModuleName="{config.Agent.ModuleName}"
           SkillName="Startup"
           WaitForCompletion="false"
           TimeoutSeconds="60"
@@ -50,7 +50,7 @@
 
         <WaitForSkillState
           name="WaitForStartupRunning"
-          ModuleName="{config.Agent.ModuleId}"
+          ModuleName="{config.Agent.ModuleName}"
           SkillName="Startup"
           TargetState="Running"
           TimeoutSeconds="60"
@@ -61,7 +61,7 @@
       <!-- ==================== SCHRITT 5: STORAGE AUSLESEN ==================== -->
       <ReadStorage 
         name="ReadModuleStorage"
-        ModuleName="{config.Agent.ModuleId}" />
+        ModuleName="{config.Agent.ModuleName}" />
       
       <!-- ==================== SCHRITT 6: SCREW SKILL MIT PARALLEL MONITORING ==================== -->
       <Parallel name="ExecuteScrewWithMonitoring" policy="ParallelAll">
@@ -70,7 +70,7 @@
         <Sequence name="MainExecutionBranch">
           <ExecuteSkill 
             name="ExecuteScrew"
-            ModuleName="{config.Agent.ModuleId}"
+            ModuleName="{config.Agent.ModuleName}"
             SkillName="Store"
             Parameters="ProductId=HelloWorld"
             TimeoutSeconds="120"
@@ -88,22 +88,22 @@
               <Sequence name="HealthChecks">
                 <CheckLockStatus 
                   name="CheckLock"
-                  ModuleName="{config.Agent.ModuleId}" />
+                  ModuleName="{config.Agent.ModuleName}" />
                 
                 <CheckStartupSkillStatus 
                   name="CheckStartup"
-                  ModuleName="{config.Agent.ModuleId}" />
+                  ModuleName="{config.Agent.ModuleName}" />
                 
                 <CheckErrorState 
                   name="CheckErrors"
-                  ModuleName="{config.Agent.ModuleId}" />
+                  ModuleName="{config.Agent.ModuleName}" />
               </Sequence>
               
               <!-- If Health Check Failed → Trigger Recovery -->
                 <Sequence name="AutoRecovery">
-                <UnlockResource name="AutoUnlock" ModuleName="{config.Agent.ModuleId}" ResourceId="{config.Agent.ModuleId}" />
+                <UnlockResource name="AutoUnlock" ModuleName="{config.Agent.ModuleName}" ResourceId="{config.Agent.ModuleName}" />
                 <Wait name="WaitAfterUnlock" DelayMs="1000" />
-                <LockResource name="AutoRelock" ModuleName="{config.Agent.ModuleId}" ResourceId="{config.Agent.ModuleId}" TimeoutSeconds="10" />
+                <LockResource name="AutoRelock" ModuleName="{config.Agent.ModuleName}" ResourceId="{config.Agent.ModuleName}" TimeoutSeconds="10" />
               </Sequence>
               
             </Fallback>

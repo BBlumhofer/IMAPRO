@@ -15,7 +15,13 @@ public class ApplyOfferDecisionNode : BTNode
 
     public override Task<NodeStatus> Execute()
     {
-        var decisionRaw = Context.Get<string>("OfferDecision") ?? "ACCEPT";
+        var decisionRaw = Context.Get<string>("OfferDecision");
+
+        if (string.IsNullOrWhiteSpace(decisionRaw))
+        {
+            return Task.FromResult(NodeStatus.Running);
+        }
+
         var decision = decisionRaw.ToUpperInvariant();
         var action = Context.Get<ActionModel>("CurrentPlanAction");
 
@@ -41,6 +47,9 @@ public class ApplyOfferDecisionNode : BTNode
                 Logger.LogWarning("ApplyOfferDecision: unknown decision {Decision}, keeping pending", decisionRaw);
                 break;
         }
+
+        // consume decision so the loop stays idle until a new one arrives
+        Context.Set("OfferDecision", null);
 
         return Task.FromResult(NodeStatus.Success);
     }

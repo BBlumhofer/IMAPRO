@@ -89,7 +89,7 @@ public static class ActionQueueBroadcaster
             return moduleId;
         }
 
-        if (context.Has("config.Agent.ModuleId") && context.Get<string>("config.Agent.ModuleId") is { } cfgModule && !string.IsNullOrWhiteSpace(cfgModule))
+        if (context.Has("config.Agent.ModuleName") && context.Get<string>("config.Agent.ModuleName") is { } cfgModule && !string.IsNullOrWhiteSpace(cfgModule))
         {
             return cfgModule;
         }

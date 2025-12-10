@@ -37,27 +37,27 @@
       <Sequence name="LockSequence">
         <LockResource 
           name="LockModule"
-          ModuleName="{config.Agent.ModuleId}"
-          ResourceId="{config.Agent.ModuleId}"
+          ModuleName="{config.Agent.ModuleName}"
+          ResourceId="{config.Agent.ModuleName}"
           TimeoutSeconds="30" />
         
         <CheckLockedState
           name="VerifyLocked"
-          ModuleName="{config.Agent.ModuleId}"
+          ModuleName="{config.Agent.ModuleName}"
           ExpectLocked="true" />
       </Sequence>
 
       <RetryUntilSuccess name="EnsureCoupledBeforeStartup" numAttempts="15" delayMs="2000">
         <EnsurePortsCoupled
           name="EnsurePortsCoupled"
-          ModuleName="{config.Agent.ModuleId}"
+          ModuleName="{config.Agent.ModuleName}"
           TimeoutSeconds="45" />
       </RetryUntilSuccess>
 
       <Sequence name="StartupSequence">
         <ExecuteSkill 
           name="ExecuteStartup"
-          ModuleName="{config.Agent.ModuleId}"
+          ModuleName="{config.Agent.ModuleName}"
           SkillName="StartupSkill"
           WaitForCompletion="false"
           TimeoutSeconds="60"
@@ -65,7 +65,7 @@
         
         <WaitForSkillState
           name="WaitForStartupRunning"
-          ModuleName="{config.Agent.ModuleId}"
+          ModuleName="{config.Agent.ModuleName}"
           SkillName="StartupSkill"
           TargetState="Running"
           TimeoutSeconds="30"
@@ -75,7 +75,7 @@
         <Fallback name="EnsureCoupledWhileRunning">
           <EnsurePortsCoupled
             name="EnsurePortsCoupledWhileRunning"
-            ModuleName="{config.Agent.ModuleId}"
+            ModuleName="{config.Agent.ModuleName}"
             TimeoutSeconds="45" />
           <AlwaysSuccess name="SkipCoupleRetry" />
         </Fallback>
@@ -84,11 +84,11 @@
           name="SendInitComplete"
           LogLevel="INFO"
           Message="Module initialization complete. Ready to accept skill requests."
-          ModuleId="{config.Agent.ModuleId}"/>
+          ModuleId="{config.Agent.ModuleName}"/>
       </Sequence>
 
       <UpdateInventory name="PublishInventoryAfterInit" 
-               ModuleId="{config.Agent.ModuleId}" 
+               ModuleId="{config.Agent.ModuleName}" 
                PublishToMqtt="true"
                ForcePublish="true"/>
     </Sequence>
@@ -101,7 +101,7 @@
         
         <Sequence name="ProcessOneAction">
           <ReadMqttSkillRequest name="WaitForSkillRequest" 
-                                ModuleId="{config.Agent.ModuleId}" 
+                                ModuleId="{config.Agent.ModuleName}" 
                                 TimeoutMs="100"/>
           
           <Fallback name="ActionExecution">
@@ -115,7 +115,7 @@
                 <ForceFailure name="StopAfterRefusalModuleBusy">
                   <Sequence name="SendRefusalModuleBusy">
                     <SendSkillResponse name="SendRefusal" 
-                                      ModuleId="{config.Agent.ModuleId}" 
+                                      ModuleId="{config.Agent.ModuleName}" 
                                       ActionState="ERROR" 
                                       FrameType="refusal"/>
                   </Sequence>
@@ -125,7 +125,7 @@
               <CheckSkillPreconditions name="CheckSkillPreconditions" ModuleName="{MachineName}" />
               
               <SendSkillResponse name="SendConsent" 
-                                ModuleId="{config.Agent.ModuleId}" 
+                                ModuleId="{config.Agent.ModuleName}" 
                                 ActionState="PLANNED" 
                                 FrameType="consent"/>
               
@@ -134,7 +134,7 @@
                              State="EXECUTING"/>
               
               <SendSkillResponse name="SendRunning" 
-                                ModuleId="{config.Agent.ModuleId}" 
+                                ModuleId="{config.Agent.ModuleName}" 
                                 ActionState="EXECUTING" 
                                 FrameType="inform"/>
               
@@ -165,7 +165,7 @@
                                    State="ERROR"/>
                     
                     <SendSkillResponse name="SendFailure" 
-                                      ModuleId="{config.Agent.ModuleId}" 
+                                      ModuleId="{config.Agent.ModuleName}" 
                                       ActionState="ERROR" 
                                       FrameType="failure"/>
                   </Sequence>
@@ -173,8 +173,8 @@
               </Fallback>
               
               <UpdateInventory name="UpdateInventory" 
-                               ModuleId="{config.Agent.ModuleId}" 
-                               ModuleName="{config.Agent.ModuleId}"
+                               ModuleId="{config.Agent.ModuleName}" 
+                               ModuleName="{config.Agent.ModuleName}"
                                PublishToMqtt="true"/>
               
               <SetModuleState name="SetDone"
@@ -182,12 +182,12 @@
                              State="DONE"/>
               
               <SendSkillResponse name="SendCompleted" 
-                                ModuleId="{config.Agent.ModuleId}" 
+                                ModuleId="{config.Agent.ModuleName}" 
                                 ActionState="DONE" 
                                 FrameType="inform"/>
               
               <SendStateMessage name="PublishState" 
-                               ModuleId="{config.Agent.ModuleId}" 
+                               ModuleId="{config.Agent.ModuleName}" 
                                IncludeModuleLocked="true" 
                                IncludeModuleReady="true"/>
             </Sequence>

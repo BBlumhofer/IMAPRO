@@ -23,9 +23,8 @@ public class ReceiverRequestForOfferNode : BTNode
 
         if (string.IsNullOrWhiteSpace(reqCap))
         {
-            Logger.LogWarning("ReceiverRequestForOffer: no RequiredCapability provided");
-            Context.Set("RefusalReason", RefusalReason);
-            return Task.FromResult(NodeStatus.Failure);
+            // Nothing queued; keep loop idle without emitting refusals
+            return Task.FromResult(NodeStatus.Running);
         }
 
         Context.Set("RequiredCapability", reqCap);

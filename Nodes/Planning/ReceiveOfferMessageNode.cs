@@ -13,8 +13,14 @@ public class ReceiveOfferMessageNode : BTNode
 
     public override Task<NodeStatus> Execute()
     {
-        var decision = Context.Get<string>("OfferDecision") ?? "ACCEPT";
-        Context.Set("OfferDecision", decision);
+        var decision = Context.Get<string>("OfferDecision");
+
+        if (string.IsNullOrWhiteSpace(decision))
+        {
+            // nothing to do yet; keep the sequence running without spamming logs
+            return Task.FromResult(NodeStatus.Running);
+        }
+
         Logger.LogInformation("ReceiveOfferMessage: decision={Decision}", decision);
         return Task.FromResult(NodeStatus.Success);
     }

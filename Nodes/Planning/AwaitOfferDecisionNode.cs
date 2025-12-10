@@ -15,9 +15,14 @@ public class AwaitOfferDecisionNode : BTNode
 
     public override Task<NodeStatus> Execute()
     {
-        // Stub: read decision from context; default to ACCEPT
-        var decision = Context.Get<string>("OfferDecision") ?? "ACCEPT";
-        Context.Set("OfferDecision", decision);
+        var decision = Context.Get<string>("OfferDecision");
+
+        if (string.IsNullOrWhiteSpace(decision))
+        {
+            // keep waiting without emitting noisy logs
+            return Task.FromResult(NodeStatus.Running);
+        }
+
         Logger.LogInformation("AwaitOfferDecision: decision={Decision} (timeoutMs={Timeout})", decision, TimeoutMs);
         return Task.FromResult(NodeStatus.Success);
     }
