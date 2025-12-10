@@ -12,6 +12,7 @@ using MAS_BT.Nodes.Recovery;
 using MAS_BT.Nodes; // Neue Monitoring Nodes
 using MAS_BT.Nodes.Planning;
 using MAS_BT.Nodes.Dispatching;
+using MAS_BT.Nodes.ModuleHolon;
 
 namespace MAS_BT.Serialization;
 
@@ -169,6 +170,13 @@ public class NodeRegistry
         Register<HandleManufacturingSequenceRequestNode>("HandleManufacturingSequenceRequest");
         Register<HandleBookStepRequestNode>("HandleBookStepRequest");
         Register<HandleTransportPlanRequestNode>("HandleTransportPlanRequest");
+        Register<ModuleHolonRegistrationNode>("ModuleHolonRegistration");
+        Register<SubscribeModuleHolonTopicsNode>("SubscribeModuleHolonTopics");
+        Register<ForwardToInternalNode>("ForwardToInternal");
+        Register<WaitForInternalResponseNode>("WaitForInternalResponse");
+        Register<ReplyToDispatcherNode>("ReplyToDispatcher");
+        Register<WaitForSubHolonRegisterNode>("WaitForSubHolonRegister");
+        Register<SpawnSubHolonsNode>("SpawnSubHolons");
         
         // Monitoring Nodes (bestehende)
         Register<ReadStorageNode>();

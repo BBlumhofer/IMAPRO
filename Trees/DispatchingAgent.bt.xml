@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root BTCPP_format="4" main_tree_to_execute="DispatchingAgent">
+  <BehaviorTree ID="DispatchingAgent">
+    <Sequence name="DispatchingAgentRoot">
+      <ReadConfig name="LoadConfig" configPath="configs/dispatching_agent.json" />
+      <SetBlackboardValue name="BindAgentId" Key="AgentId" Value="{config.Agent.AgentId}" />
+      <SetBlackboardValue name="BindAgentRole" Key="AgentRole" Value="{config.Agent.Role}" />
+      <SetBlackboardValue name="BindNamespace" Key="Namespace" Value="{config.Namespace}" />
+
+      <ConnectToMessagingBroker
+        name="ConnectMqtt"
+        BrokerHost="{config.MQTT.Broker}"
+        BrokerPort="{config.MQTT.Port}"
+        DefaultTopic="{config.MQTT.TopicPrefix}/dispatching"
+        TimeoutMs="10000"
+        ClientId="{config.Agent.AgentId}_Dispatching" />
+
+      <InitializeDispatchingState name="InitDispatchState" />
+      <SubscribeDispatchingTopics name="SubscribeTopics" />
+
+      <Parallel name="DispatchingLoops">
+        <Repeat name="RegistrationLoop" num_cycles="-1">
+          <Fallback name="RegOrWait">
+            <Sequence name="HandleRegistration">
+              <WaitForMessage name="WaitRegistration" ExpectedTypes="moduleRegistration" TimeoutSeconds="5" />
+              <HandleModuleRegistration name="HandleModuleRegistration" />
+              <Wait name="RegIdle" DelayMs="200" />
+            </Sequence>
+            <Wait name="RegBackoff" DelayMs="200" />
+          </Fallback>
+        </Repeat>
+
+        <Repeat name="ProcessChainLoop" num_cycles="-1">
+          <Fallback name="ProcessChainOrIdle">
+            <Sequence name="HandleProcessChain">
+              <WaitForMessage name="AwaitProcessChain" ExpectedTypes="callForProposal" TimeoutSeconds="10" />
+              <HandleProcessChainRequest name="BuildProcessChain" />
+              <Wait name="ProcessChainIdle" DelayMs="200" />
+            </Sequence>
+            <Wait name="ProcessChainBackoff" DelayMs="200" />
+          </Fallback>
+        </Repeat>
+
+        <Repeat name="ManufacturingSequenceLoop" num_cycles="-1">
+          <Fallback name="MfgSeqOrIdle">
+            <Sequence name="HandleMfgSeq">
+              <WaitForMessage name="AwaitMfgSeq" ExpectedTypes="requestManufacturingSequence,manufacturingSequenceRequest" TimeoutSeconds="10" />
+              <HandleManufacturingSequenceRequest name="HandleManufacturingSequenceRequest" />
+              <Wait name="MfgIdle" DelayMs="300" />
+            </Sequence>
+            <Wait name="MfgBackoff" DelayMs="300" />
+          </Fallback>
+        </Repeat>
+
+        <Repeat name="BookStepLoop" num_cycles="-1">
+          <Fallback name="BookStepOrIdle">
+            <Sequence name="HandleBookStep">
+              <WaitForMessage name="AwaitBookStep" ExpectedTypes="bookStep" TimeoutSeconds="10" />
+              <HandleBookStepRequest name="HandleBookStepRequest" />
+              <Wait name="BookIdle" DelayMs="300" />
+            </Sequence>
+            <Wait name="BookBackoff" DelayMs="300" />
+          </Fallback>
+        </Repeat>
+
+        <Repeat name="TransportPlanLoop" num_cycles="-1">
+          <Fallback name="TransportOrIdle">
+            <Sequence name="HandleTransportPlan">
+              <WaitForMessage name="AwaitTransportPlan" ExpectedTypes="requestTransportPlan,transportRequest" TimeoutSeconds="10" />
+              <HandleTransportPlanRequest name="HandleTransportPlanRequest" />
+              <Wait name="TransportIdle" DelayMs="300" />
+            </Sequence>
+            <Wait name="TransportBackoff" DelayMs="300" />
+          </Fallback>
+        </Repeat>
+      </Parallel>
+    </Sequence>
+  </BehaviorTree>
+
+  <TreeNodesModel>
+    <Action ID="ReadConfig">
+      <input_port name="configPath" />
+    </Action>
+    <Action ID="SetBlackboardValue">
+      <input_port name="Key" />
+      <input_port name="Value" />
+      <input_port name="ValueType" default="string" />
+    </Action>
+    <Action ID="ConnectToMessagingBroker">
+      <input_port name="BrokerHost" />
+      <input_port name="BrokerPort" />
+      <input_port name="DefaultTopic" />
+      <input_port name="TimeoutMs" />
+      <input_port name="ClientId" />
+    </Action>
+    <Action ID="InitializeDispatchingState" />
+    <Action ID="SubscribeDispatchingTopics" />
+    <Action ID="WaitForMessage">
+      <input_port name="ExpectedType" />
+      <input_port name="ExpectedTypes" />
+      <input_port name="ExpectedSender" />
+      <input_port name="TimeoutSeconds" />
+      <input_port name="ExpectedConversationId" />
+    </Action>
+    <Action ID="HandleModuleRegistration" />
+    <Action ID="HandleProcessChainRequest" />
+    <Action ID="HandleManufacturingSequenceRequest" />
+    <Action ID="HandleBookStepRequest" />
+    <Action ID="HandleTransportPlanRequest" />
+    <Action ID="Wait">
+      <input_port name="DelayMs" default="1000" />
+    </Action>
+  </TreeNodesModel>
+</root>
