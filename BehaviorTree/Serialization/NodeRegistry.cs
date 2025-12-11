@@ -161,6 +161,7 @@ public class NodeRegistry
         Register<SendSkillResponseNode>();
         Register<UpdateInventoryNode>("UpdateInventory");
         Register<PublishNeighborsNode>("PublishNeighbors");
+        Register<ReadNeighborsFromRemoteNode>("ReadNeighborsFromRemote");
         Register<SendStateMessageNode>();
         Register<EnableStorageChangeMqttNode>();
         Register<SendProcessChainRequestNode>();
@@ -173,6 +174,7 @@ public class NodeRegistry
         Register<HandleTransportPlanRequestNode>("HandleTransportPlanRequest");
         Register<ModuleHolonRegistrationNode>("ModuleHolonRegistration");
         Register<SubscribeModuleHolonTopicsNode>("SubscribeModuleHolonTopics");
+        Register<ReadCachedSnapshotsNode>("ReadCachedSnapshots");
         Register<ForwardToInternalNode>("ForwardToInternal");
         Register<WaitForInternalResponseNode>("WaitForInternalResponse");
         Register<ReplyToDispatcherNode>("ReplyToDispatcher");

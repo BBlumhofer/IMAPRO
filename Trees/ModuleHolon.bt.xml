@@ -16,10 +16,10 @@
         TimeoutMs="10000"
         ClientId="{config.Agent.AgentId}_ModuleHolon" />
 
-      <ModuleHolonRegistration name="InitialRegistration" />
       <SubscribeModuleHolonTopics name="SubscribeTopics" />
       <SpawnSubHolons name="SpawnSubHolons" />
       <WaitForSubHolonRegister name="WaitSubHolon" TimeoutSeconds="20" />
+      <ModuleHolonRegistration name="InitialRegistration" />
 
       <Parallel name="HolonLoops">
         <Repeat name="OfferLoop" num_cycles="-1">
@@ -63,8 +63,9 @@
 
         <Repeat name="HeartbeatLoop" num_cycles="-1">
           <Sequence name="Heartbeat">
+            <ReadCachedSnapshots name="LoadLastSnapshots" />
             <ModuleHolonRegistration name="RefreshRegistration" />
-            <Wait name="HeartbeatWait" DelayMs="5000" />
+            <Wait name="HeartbeatWait" DelayMs="{config.Agent.RegistrationIntervalMs}" />
           </Sequence>
         </Repeat>
       </Parallel>

@@ -1,7 +1,14 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
 using MAS_BT.Core;
 using Microsoft.Extensions.Logging;
 using I40Sharp.Messaging;
+using I40Sharp.Messaging.Models;
+using AasSharpClient.Models.Messages;
+using BaSyx.Models.AdminShell;
+using AasSharpClient.Models.Messages;
 
 namespace MAS_BT.Nodes.ModuleHolon;
 
@@ -52,18 +59,27 @@ public class SubscribeModuleHolonTopicsNode : BTNode
         {
             client.OnMessage(m =>
             {
-                var type = m?.Frame?.Type;
-                if (string.Equals(type, "inventoryUpdate", StringComparison.OrdinalIgnoreCase))
+                if (IsInventoryUpdate(m))
                 {
-                    var payload = SerializeMessage(m);
-                    Context.Set($"Inventory_{moduleId}", payload);
-                    Logger.LogInformation("SubscribeModuleHolonTopics: cached inventory for {ModuleId}", moduleId);
+                    var cache = BuildInventoryCache(m);
+                    if (cache != null)
+                    {
+                        Context.Set($"InventoryCache_{moduleId}", cache);
+                        // Keep a current, structured snapshot in context for immediate use
+                        Context.Set("ModuleInventory", cache.StorageUnits);
+                        Logger.LogInformation("SubscribeModuleHolonTopics: cached inventory for {ModuleId}", moduleId);
+                    }
                 }
-                else if (string.Equals(type, "neighborsUpdate", StringComparison.OrdinalIgnoreCase))
+                else if (IsNeighborsUpdate(m))
                 {
-                    var payload = SerializeMessage(m);
-                    Context.Set($"Neighbors_{moduleId}", payload);
-                    Logger.LogInformation("SubscribeModuleHolonTopics: cached neighbors for {ModuleId}", moduleId);
+                    var cache = BuildNeighborsCache(m);
+                    if (cache != null)
+                    {
+                        Context.Set($"NeighborsCache_{moduleId}", cache);
+                        // Also expose the parsed neighbors directly to the context
+                        Context.Set("Neighbors", cache.Neighbors);
+                        Logger.LogInformation("SubscribeModuleHolonTopics: cached neighbors for {ModuleId}", moduleId);
+                    }
                 }
             });
             Context.Set("ModuleHolonTopicsHandlerRegistered", true);
@@ -72,8 +88,87 @@ public class SubscribeModuleHolonTopicsNode : BTNode
         return ok > 0 ? NodeStatus.Success : NodeStatus.Failure;
     }
 
-    private static string SerializeMessage(I40Sharp.Messaging.Models.I40Message? msg)
+    private static CachedInventoryData? BuildInventoryCache(I40Message? message)
     {
-        return System.Text.Json.JsonSerializer.Serialize(msg ?? new object());
+        if (message?.InteractionElements == null)
+        {
+            return null;
+        }
+
+        var inventory = new InventoryMessage(message.InteractionElements);
+        var storageUnits = inventory.StorageUnits?.ToList() ?? new List<StorageUnit>();
+        if (storageUnits.Count == 0)
+        {
+            return null;
+        }
+
+        return new CachedInventoryData(storageUnits, DateTime.UtcNow);
     }
+
+    private static CachedNeighborsData? BuildNeighborsCache(I40Message? message)
+    {
+        var neighbors = ExtractNeighborNames(message);
+        return new CachedNeighborsData(neighbors, DateTime.UtcNow);
+    }
+
+    private static bool IsInventoryUpdate(I40Message? message)
+    {
+        if (message == null)
+        {
+            return false;
+        }
+
+        var type = message.Frame?.Type;
+        if (string.Equals(type, "inventoryUpdate", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return InventoryMessage.ContainsStorageUnits(message.InteractionElements);
+    }
+
+    private static bool IsNeighborsUpdate(I40Message? message)
+    {
+        if (message == null)
+        {
+            return false;
+        }
+
+        var type = message.Frame?.Type;
+        if (string.Equals(type, "neighborsUpdate", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return ContainsNeighborCollection(message.InteractionElements);
+    }
+
+    private static bool ContainsNeighborCollection(IEnumerable<ISubmodelElement>? interactionElements)
+    {
+        if (interactionElements == null)
+        {
+            return false;
+        }
+
+        if (interactionElements.OfType<SubmodelElementCollection>()
+            .Any(c => string.Equals(c.IdShort, "Neighbors", StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return interactionElements.OfType<IProperty>()
+            .Any(p => string.Equals(p.IdShort, "Neighbors", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static List<string> ExtractNeighborNames(I40Message? message)
+    {
+        if (message?.InteractionElements == null)
+        {
+            return new List<string>();
+        }
+
+        // Use NeighborMessage helper (handles SubmodelElementCollection parsing).
+        return NeighborMessage.GetNeighbors(message.InteractionElements.ToList());
+    }
+
 }

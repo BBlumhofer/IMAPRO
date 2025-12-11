@@ -107,6 +107,9 @@
                            ModuleName="{config.Agent.ModuleName}"
                            PublishToMqtt="true"
                            ForcePublish="true" />
+          <ReadNeighborsFromRemote name="ReadNeighborsFromRemote"
+                                   ModuleName="{config.Agent.ModuleName}" />
+
           <PublishNeighbors name="HeartbeatNeighbors"
                             ModuleId="{config.Agent.ModuleName}"
                             ModuleName="{config.Agent.ModuleName}" />
@@ -267,6 +270,7 @@
       <input_port name="Parameters" />
       <input_port name="WaitForCompletion" />
       <input_port name="ResetAfterCompletion" />
+      <input_port name="ResetBeforeIfHalted" />
       <input_port name="TimeoutSeconds" />
     </Action>
     <Action ID="WaitForSkillState">
@@ -293,6 +297,9 @@
       <input_port name="ModuleId" />
       <input_port name="ModuleName" />
     </Action>
+    <Action ID="ReadNeighborsFromRemote">
+      <input_port name="ModuleName" />
+    </Action>
     <Action ID="Wait">
       <input_port name="DelayMs" default="1000" />
     </Action>
@@ -305,7 +312,6 @@
       <input_port name="ExpectedState" />
       <input_port name="InvertCheck" />
     </Action>
-    <Action ID="ForceFailure" />
     <Action ID="SendSkillResponse">
       <input_port name="ModuleId" />
       <input_port name="ActionState" />

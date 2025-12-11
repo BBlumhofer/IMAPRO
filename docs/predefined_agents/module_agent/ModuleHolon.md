@@ -47,6 +47,12 @@ Sequence ModuleHolon
     - Heartbeat/RegistrationRefresh Loop
 ```
 
+## Inventory- und Neighbor-Snapshots
+- `SubscribeModuleHolonTopics` abonniert `/ {Namespace}/{ModuleId}/Inventory` sowie `/Neighbors` und cached die eingehenden `InventoryMessage`- bzw. `neighborsUpdate`-Payloads.
+- Die Snapshots werden im `ModuleHolon`-Context unter `ModuleInventory` und `Neighbors` abgelegt, damit der `ModuleHolonRegistration` bei jedem Heartbeat die aktuellen StorageUnits/Slots direkt mit registrieren kann.
+- Das Inventory-Format entspricht exakt der `InventoryMessage` aus `AAS-Sharp-Client` (`StorageUnits -> Slots -> SlotContent`). Dadurch kann der Dispatcher sofort den realen Modulzustand sehen, ohne erneut beim Modul nachfragen zu müssen.
+- Beim Start (InitialRegistration) wartet der Holon optional einige Millisekunden (`config.Agent.InitialSnapshotTimeoutMs`), damit erste Snapshots ankommen. Fällt während des Betriebs die Verbindung weg, wird weiterhin das zuletzt empfangene Cache-Abbild verwendet.
+
 ## Registrierung der Sub-Holone
 - Jeder Sub-Holon veröffentlicht nach Start eine Nachricht auf `/ModuleHolon/{ModuleId}/register` mit seinen Identifiers (AgentId, Role, SupportedMessages).
 - Module Holon speichert die Sub-Holon-Endpunkte und nutzt sie für das Routing.

@@ -6,8 +6,7 @@ using Microsoft.Extensions.Logging;
 using I40Sharp.Messaging;
 using I40Sharp.Messaging.Core;
 using I40Sharp.Messaging.Models;
-using System.Text.Json;
-using BaSyx.Models.AdminShell;
+using AasSharpClient.Models.Messages;
 
 namespace MAS_BT.Nodes.Messaging;
 
@@ -41,12 +40,12 @@ public class PublishNeighborsNode : BTNode
 
         try
         {
-            var payloadJson = JsonSerializer.Serialize(neighbors);
+            var neighborsCollection = new NeighborMessage(neighbors);
             var msg = new I40MessageBuilder()
                 .From($"{moduleName}_Execution_Agent", "ExecutionAgent")
                 .To("Broadcast", "System")
                 .WithType("neighborsUpdate")
-                .AddElement(new Property<string>("Neighbors") { Value = new PropertyValue<string>(payloadJson) })
+                .AddElement(neighborsCollection)
                 .Build();
 
             await client.PublishAsync(msg, topic);
@@ -59,4 +58,5 @@ public class PublishNeighborsNode : BTNode
             return NodeStatus.Failure;
         }
     }
+    // NeighborMessage already builds the collection, so no helpers are required here.
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using MAS_BT.Core;
 using I40Sharp.Messaging;
@@ -322,16 +323,19 @@ namespace MAS_BT.Services
             try
             {
                 var inventoryCollection = new InventoryMessage(storageUnits);
-                var invBuilder = new I40MessageBuilder()
+                var invMessage = new I40MessageBuilder()
                     .From(_agentId, _agentRole)
                     .To("broadcast", string.Empty)
                     .WithType(I40MessageTypes.INFORM)
                     .WithConversationId(Guid.NewGuid().ToString())
-                    .AddElement(inventoryCollection);
+                    .AddElement(inventoryCollection)
+                    .Build();
 
-                var inventoryTopic = $"/Modules/{moduleName}/Inventory/";
-                await _messagingClient.PublishAsync(invBuilder.Build(), inventoryTopic);
-                Console.WriteLine($"StorageMqttNotifier: published inventory to topic {inventoryTopic}");
+                foreach (var topic in BuildTopicVariants(moduleName, "Inventory"))
+                {
+                    await _messagingClient.PublishAsync(invMessage, topic);
+                    Console.WriteLine($"StorageMqttNotifier: published inventory to topic {topic}");
+                }
             }
             catch (Exception pubEx)
             {
@@ -342,21 +346,39 @@ namespace MAS_BT.Services
             try
             {
                 var logElement = new LogMessage(LogMessage.LogLevel.Info, eventText ?? string.Empty, _agentRole, _agentId);
-                var logBuilder = new I40MessageBuilder()
+                var logMessage = new I40MessageBuilder()
                     .From(_agentId, _agentRole)
                     .To("broadcast", string.Empty)
                     .WithType(I40MessageTypes.INFORM)
                     .WithConversationId(Guid.NewGuid().ToString())
-                    .AddElement(logElement);
+                    .AddElement(logElement)
+                    .Build();
 
-                var logTopic = $"/Modules/{moduleName}/Logs/";
-                await _messagingClient.PublishAsync(logBuilder.Build(), logTopic);
-                Console.WriteLine($"StorageMqttNotifier: published log to topic {logTopic}");
+                foreach (var topic in BuildTopicVariants(moduleName, "Logs"))
+                {
+                    await _messagingClient.PublishAsync(logMessage, topic);
+                    Console.WriteLine($"StorageMqttNotifier: published log to topic {topic}");
+                }
             }
             catch (Exception logEx)
             {
                 Console.WriteLine($"StorageMqttNotifier: log publish failed for {moduleName}/{storageName} (coalesced): {logEx.Message}");
             }
+        }
+
+        private IEnumerable<string> BuildTopicVariants(string moduleName, string channel)
+        {
+            var topics = new List<string> { $"/Modules/{moduleName}/{channel}/" };
+            var ns = _context.Get<string>("config.Namespace") ?? _context.Get<string>("Namespace");
+            if (!string.IsNullOrWhiteSpace(ns))
+            {
+                var normalized = channel.Equals("Inventory", StringComparison.OrdinalIgnoreCase)
+                    ? $"/{ns}/{moduleName}/Inventory"
+                    : $"/{ns}/{moduleName}/{channel}";
+                topics.Add(normalized);
+            }
+
+            return topics.Distinct(StringComparer.OrdinalIgnoreCase);
         }
     }
 }

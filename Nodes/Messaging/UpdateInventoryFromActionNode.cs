@@ -206,7 +206,6 @@ public class UpdateInventoryNode : BTNode
                 .To("Broadcast", "System")
                 .WithType("inventoryUpdate")
                 .AddElement(inventoryCollection)
-                .AddElement(new Property<string>("Inventory") { Value = new PropertyValue<string>(System.Text.Json.JsonSerializer.Serialize(storageUnits)) })
                 .Build();
 
             var ns = Context.Get<string>("config.Namespace") ?? Context.Get<string>("Namespace") ?? "phuket";

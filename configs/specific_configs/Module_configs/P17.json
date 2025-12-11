@@ -4,7 +4,10 @@
     "ModuleName":"CA-Module",
     "Role": "ModuleHolon",
     "LogLevel": "Information",
-    "InitializationTree": "Trees/ModuleHolon.bt.xml"
+    "InitializationTree": "Trees/ModuleHolon.bt.xml",
+    "RegistrationIntervalMs": 30000,
+    "InitialSnapshotTimeoutMs": 10000,
+    "SnapshotPollDelayMs": 250
   },
   "SubHolons": ["P17_Execution_agent","P17_planning_agent"],
   "AAS": {
