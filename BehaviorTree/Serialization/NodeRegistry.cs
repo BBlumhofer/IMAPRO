@@ -205,10 +205,26 @@ public class NodeRegistry
         Register<ParseProcessChainRequestNode>("ParseProcessChainRequest");
         Register<CheckForCapabilitiesInNamespaceNode>("CheckForCapabilitiesInNamespace");
         Register<DispatchCapabilityRequestsNode>("DispatchCapabilityRequests");
+        Register<BuildConversationIdNode>("BuildConversationId");
+        Register<SelectCandidatesNode>("SelectCandidates");
+        Register<PublishCfPNode>("PublishCfP");
+        Register<RecordExpectedRespondersNode>("RecordExpectedResponders");
+        Register<StartOfferCollectionNode>("StartOfferCollection");
+        Register<WaitForOffersNode>("WaitForOffers");
+        Register<EvaluateOffersNode>("EvaluateOffers");
+        Register<FinalizeRequirementNode>("FinalizeRequirement");
         Register<CollectCapabilityOfferNode>("CollectCapabilityOffer");
         Register<BuildProcessChainResponseNode>("BuildProcessChainResponse");
+        Register<BuildManufacturingSequenceResponseNode>("BuildManufacturingSequenceResponse");
         Register<SendProcessChainResponseNode>("SendProcessChainResponse");
+        Register<SendManufacturingSequenceResponseNode>("SendManufacturingSequenceResponse");
         Register<PublishAgentStateNode>("PublishAgentState");
+        
+        // Sequential requirement processing (simplified pattern)
+        Register<GetNextRequirementNode>("GetNextRequirement");
+        Register<DispatchOneCapabilityRequestNode>("DispatchOneCapabilityRequest");
+        Register<CollectOffersForRequirementNode>("CollectOffersForRequirement");
+        Register<UpdateAssetLocationNode>("UpdateAssetLocation");
 
         // Planning / offer flow
         Register<ParseCapabilityRequestNode>("ParseCapabilityRequest");
@@ -220,6 +236,7 @@ public class NodeRegistry
         Register<SelectSchedulableActionNode>("SelectSchedulableAction");
         Register<RequestTransportNode>("RequestTransport");
         Register<EvaluateRequestTransportResponseNode>("EvaluateRequestTransportResponse");
+        Register<CollectTransportResponsesNode>("CollectTransportResponses");
         Register<CheckScheduleFeasibilityNode>("CheckScheduleFeasibility");
         Register<DispatchScheduledStepsNode>("DispatchScheduledSteps");
 

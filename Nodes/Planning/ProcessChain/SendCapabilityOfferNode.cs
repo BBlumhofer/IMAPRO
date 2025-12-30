@@ -50,8 +50,9 @@ public class SendCapabilityOfferNode : BTNode
             return NodeStatus.Failure;
         }
 
-        // Send response directly to the requester (dispatcher) using generic topic pattern
-        var topic = $"/{ns}/{request.RequesterId}/OfferedCapability/Response";
+        // Send response to parent Module Holon, which will forward to the dispatcher
+        // Planning should NOT send directly to dispatcher - that breaks the Module Holon pattern
+        var topic = $"/{ns}/{moduleId}/OfferedCapability/Response";
 
         Logger.LogInformation(
             "SendCapabilityOffer: sending proposal to RequesterId={RequesterId} Topic={Topic}",
@@ -62,10 +63,10 @@ public class SendCapabilityOfferNode : BTNode
         // Do not embed nested sequences inside OfferedCapability.
         var offeredSequence = new ManufacturingOfferedCapabilitySequence();
 
-        var pre = plan.SupplementalCapabilities
+        var pre = plan.SupplementalCapabilities.Capabilities
             .Where(c => c != null && !IsPostPlacement(c))
             .ToList();
-        var post = plan.SupplementalCapabilities
+        var post = plan.SupplementalCapabilities.Capabilities
             .Where(c => c != null && IsPostPlacement(c))
             .ToList();
 
@@ -95,32 +96,50 @@ public class SendCapabilityOfferNode : BTNode
             }
         }
 
-        foreach (var cap in pre)
+        // Prevent accidental duplicates in the offered sequence (some capabilities may appear
+        // multiple times due to shared references or leftover context). Use InstanceIdentifier
+        // or IdShort as uniqueness key.
+        var seen = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string GetKey(OfferedCapability c)
         {
-            offeredSequence.AddCapability(cap);
+            try
+            {
+                var id = c?.InstanceIdentifier?.GetText();
+                if (!string.IsNullOrWhiteSpace(id)) return id!;
+            }
+            catch { }
+            try { if (!string.IsNullOrWhiteSpace(c?.IdShort)) return c.IdShort!; } catch { }
+            return c?.GetHashCode().ToString() ?? Guid.NewGuid().ToString();
         }
 
-        offeredSequence.AddCapability(offeredCapability);
+        foreach (var cap in pre)
+        {
+            var key = GetKey(cap);
+            if (seen.Add(key)) offeredSequence.AddCapability(cap);
+        }
+
+        // main capability
+        var mainKey = GetKey(offeredCapability);
+        if (seen.Add(mainKey)) offeredSequence.AddCapability(offeredCapability);
 
         foreach (var cap in post)
         {
-            offeredSequence.AddCapability(cap);
+            var key = GetKey(cap);
+            if (seen.Add(key)) offeredSequence.AddCapability(cap);
         }
 
-        // Diagnostic: log payload shape before publishing
+        // Diagnostic: log payload shape before publishing (kept lightweight via logger)
         try
         {
             var caps = offeredSequence.GetCapabilities().ToList();
             Logger.LogDebug("SendCapabilityOffer: offered sequence contains {Count} capabilities", caps.Count);
-            try { Console.WriteLine($"[DEBUG] SendCapabilityOffer: offered sequence contains {caps.Count} capabilities"); } catch {}
             for (var i = 0; i < caps.Count; i++)
             {
                 var c = caps[i];
                 var instance = c.InstanceIdentifier.GetText();
                 var actions = c.Actions;
-                var actionArray = actions != null ? actions.ToArray() : System.Array.Empty<ISubmodelElement>();
+                var actionArray = actions != null ? actions.ToArray() : Array.Empty<ISubmodelElement>();
                 Logger.LogDebug("SendCapabilityOffer: capability #{Index} id={Instance} actions={Count}", i + 1, instance, actionArray.Length);
-                try { Console.WriteLine($"[DEBUG] SendCapabilityOffer: capability #{i+1} id={instance} actions={actionArray.Length}"); } catch {}
                 foreach (var ae in actionArray)
                 {
                     try
@@ -129,41 +148,22 @@ public class SendCapabilityOfferNode : BTNode
                         if (ae is AasSharpClient.Models.Action am)
                         {
                             var pcount = am.InputParameters?.Parameters?.Count ?? 0;
-                            Logger.LogDebug("SendCapabilityOffer: action {Title} typed InputParameters={ParamCount}", am.ActionTitle, pcount);
-                            Console.WriteLine($"[DEBUG] SendCapabilityOffer: action (typed) Title={am.ActionTitle} InputParametersCount={pcount} Type={typeName}");
+                            Logger.LogDebug("SendCapabilityOffer: action {Title} typed InputParameters={ParamCount} Type={TypeName}", am.ActionTitle, pcount, typeName);
                         }
                         else if (ae is BaSyx.Models.AdminShell.SubmodelElementCollection coll)
                         {
-                            var hasIp = (coll.Values ?? System.Array.Empty<BaSyx.Models.AdminShell.ISubmodelElement>())
+                            var hasIp = (coll.Values ?? Array.Empty<BaSyx.Models.AdminShell.ISubmodelElement>())
                                 .OfType<BaSyx.Models.AdminShell.SubmodelElementCollection>()
                                 .Any(smc => string.Equals(smc.IdShort, "InputParameters", StringComparison.OrdinalIgnoreCase));
-                            Logger.LogDebug("SendCapabilityOffer: action collection idShort={IdShort} hasInputParameters={HasIp}", coll.IdShort, hasIp);
-                            Console.WriteLine($"[DEBUG] SendCapabilityOffer: action collection IdShort={coll.IdShort} hasInputParameters={hasIp} Type={typeName}");
-                            // enumerate children for more context
-                            try
-                            {
-                                foreach (var child in coll.Values ?? System.Array.Empty<ISubmodelElement>())
-                                {
-                                    var childType = child.GetType().FullName ?? child.GetType().Name;
-                                    Console.WriteLine($"[DEBUG] SendCapabilityOffer:   child IdShort={child.IdShort} Type={childType}");
-                                    if (child is BaSyx.Models.AdminShell.SubmodelElementCollection childCol && string.Equals(childCol.IdShort, "InputParameters", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        foreach (var p in childCol.OfType<Property>())
-                                        {
-                                            Console.WriteLine($"[DEBUG] SendCapabilityOffer:     InputParameter {p.IdShort} = {p.GetText()}");
-                                        }
-                                    }
-                                }
-                            }
-                            catch { }
+                            Logger.LogDebug("SendCapabilityOffer: action collection idShort={IdShort} hasInputParameters={HasIp} Type={TypeName}", coll.IdShort, hasIp, typeName);
                         }
                         else if (ae is Property prop)
                         {
-                            Console.WriteLine($"[DEBUG] SendCapabilityOffer: action element is Property IdShort={prop.IdShort} Value={prop.GetText()} Type={typeName}");
+                            Logger.LogDebug("SendCapabilityOffer: action element is Property IdShort={IdShort} Value={Value} Type={TypeName}", prop.IdShort, prop.GetText(), typeName);
                         }
                         else
                         {
-                            Console.WriteLine($"[DEBUG] SendCapabilityOffer: action element unknown Type={typeName} IdShort={ae.IdShort}");
+                            Logger.LogDebug("SendCapabilityOffer: action element unknown Type={TypeName} IdShort={IdShort}", typeName, ae.IdShort);
                         }
                     }
                     catch (Exception ex)
@@ -196,7 +196,7 @@ public class SendCapabilityOfferNode : BTNode
             senderId: Context.AgentId,
             senderRole: string.IsNullOrWhiteSpace(Context.AgentRole) ? "PlanningAgent" : Context.AgentRole,
             receiverId: request.RequesterId,
-            receiverRole: null,
+            receiverRole: "Dispatching",
             conversationId: request.ConversationId).ConfigureAwait(false);
 
         // Clear the current message to prevent reprocessing after sending offer

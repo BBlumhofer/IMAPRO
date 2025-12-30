@@ -73,6 +73,7 @@ namespace MAS_BT.Nodes.Common
             state.Upsert(info);
             Context.Set("LastRegisteredModuleId", moduleId);
 
+            var selfId = Context.AgentId;
             if (info.Capabilities.Count > 0)
             {
                 Logger.LogInformation(
@@ -83,12 +84,24 @@ namespace MAS_BT.Nodes.Common
             }
             else
             {
-                Logger.LogWarning("HandleRegistration: registered/updated sub-agent '{ModuleId}' with ZERO capabilities. " +
-                               "Sender: {SenderId}, Role: {SenderRole}. " +
-                               "This may indicate that the agent has not yet loaded its AAS submodels or capability extraction failed.",
-                               moduleId,
-                               message.Frame?.Sender?.Identification?.Id ?? "<unknown>",
-                               message.Frame?.Sender?.Role?.Name ?? "<unknown>");
+                // Avoid noisy warnings when the registration originates from the local dispatcher itself
+                // (e.g. ManufacturingDispatcher_phuket). For local self-registrations we log at Info level.
+                if (!string.IsNullOrWhiteSpace(selfId) && string.Equals(moduleId, selfId, StringComparison.OrdinalIgnoreCase))
+                {
+                    Logger.LogInformation("HandleRegistration: registered/updated local sub-agent '{ModuleId}' with ZERO capabilities (expected during startup). Sender: {SenderId}, Role: {SenderRole}.",
+                        moduleId,
+                        message.Frame?.Sender?.Identification?.Id ?? "<unknown>",
+                        message.Frame?.Sender?.Role?.Name ?? "<unknown>");
+                }
+                else
+                {
+                    Logger.LogWarning("HandleRegistration: registered/updated sub-agent '{ModuleId}' with ZERO capabilities. " +
+                                   "Sender: {SenderId}, Role: {SenderRole}. " +
+                                   "This may indicate that the agent has not yet loaded its AAS submodels or capability extraction failed.",
+                                   moduleId,
+                                   message.Frame?.Sender?.Identification?.Id ?? "<unknown>",
+                                   message.Frame?.Sender?.Role?.Name ?? "<unknown>");
+                }
             }
 
             return Task.FromResult(NodeStatus.Success);

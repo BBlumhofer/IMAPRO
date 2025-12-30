@@ -13,7 +13,6 @@ public class LoadAssetLocationSubmodelNode : LoadSubmodelNodeBase<AssetLocationS
 
     protected override string DefaultIdShort => AssetLocationSubmodel.DefaultIdShort;
     protected override string BlackboardKey => "AssetLocationSubmodel";
-
     protected override AssetLocationSubmodel CreateTypedInstance(string identifier)
     {
         return new AssetLocationSubmodel(identifier);

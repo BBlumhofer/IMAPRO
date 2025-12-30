@@ -20,6 +20,7 @@ public class SequenceNode : CompositeNode
         {
             var child = Children[i];
             var result = await child.Execute();
+            Logger.LogDebug("SequenceNode: child {Child} returned {Result}", child.Name, result);
             
             if (result == NodeStatus.Running)
             {
@@ -62,6 +63,7 @@ public class SelectorNode : CompositeNode
         {
             var child = Children[i];
             var result = await child.Execute();
+            Logger.LogDebug("SelectorNode: child {Child} returned {Result}", child.Name, result);
             
             if (result == NodeStatus.Running)
             {

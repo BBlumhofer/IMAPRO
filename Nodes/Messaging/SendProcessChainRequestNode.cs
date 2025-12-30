@@ -55,20 +55,88 @@ public class SendProcessChainRequestNode : BTNode
             };
 
             // If an AssetLocation submodel is available on the blackboard, include it in the request
-            AasSharpClient.Models.AssetLocationSubmodel? assetLocation = null;
+            SubmodelElement? assetElement = null;
+
+            // 1) Prefer strongly-typed AssetLocation stored under ProcessChain.AssetLocation
             try
             {
-                assetLocation = Context.Get<AasSharpClient.Models.AssetLocationSubmodel>("AssetLocationSubmodel")
-                                ?? Context.Get<AasSharpClient.Models.AssetLocationSubmodel>("AAS.Submodel.AssetLocation");
+                assetElement = Context.Get<AasSharpClient.Models.AssetLocation>("ProcessChain.AssetLocation");
             }
-            catch
+            catch { }
+
+            // 2) Legacy keys (read untyped and inspect runtime type)
+            if (assetElement == null)
             {
-                // ignore missing/typed entries
+                try
+                {
+                    object? raw = Context.Get("AssetLocationSubmodel") ?? Context.Get("AAS.Submodel.AssetLocation") ?? Context.Get("AssetLocation");
+                    if (raw is AasSharpClient.Models.AssetLocation typed)
+                    {
+                        assetElement = typed;
+                    }
+                    else if (raw is SubmodelElementCollection coll)
+                    {
+                        assetElement = coll;
+                    }
+                    else if (raw is Submodel sm)
+                    {
+                        var candidate = sm.SubmodelElements?.Values?.OfType<SubmodelElementCollection>()
+                            .FirstOrDefault(c => string.Equals(c.IdShort, "AssetLocation", StringComparison.OrdinalIgnoreCase));
+                        if (candidate != null)
+                        {
+                            assetElement = candidate;
+                        }
+                    }
+                }
+                catch { }
             }
 
-            if (assetLocation != null)
+            // 3) Negotiation context raw SMC
+            if (assetElement == null)
             {
-                interactionElements.Add(WrapSubmodel(assetLocation, "AssetLocation"));
+                try
+                {
+                    var negotiation = Context.Get<MAS_BT.Nodes.Dispatching.ProcessChain.ProcessChainNegotiationContext>("ProcessChain.Negotiation");
+                    if (negotiation?.AssetLocation != null)
+                    {
+                        assetElement = negotiation.AssetLocation;
+                    }
+                }
+                catch { }
+            }
+
+            // 4) Extract from loaded AssetLocation Submodel
+            if (assetElement == null)
+            {
+                try
+                {
+                    var submodel = Context.Get<Submodel>("AssetLocationSubmodel") ?? Context.Get<Submodel>("AAS.Submodel.AssetLocation");
+                    if (submodel?.SubmodelElements?.Values != null)
+                    {
+                        var candidate = submodel.SubmodelElements.Values
+                            .OfType<SubmodelElementCollection>()
+                            .FirstOrDefault(c => string.Equals(c.IdShort, "AssetLocation", StringComparison.OrdinalIgnoreCase));
+                        if (candidate != null)
+                        {
+                            assetElement = candidate;
+                        }
+                        else
+                        {
+                            var wrap = new SubmodelElementCollection("AssetLocation");
+                            foreach (var e in submodel.SubmodelElements.Values)
+                            {
+                                wrap.Add(e);
+                            }
+                            assetElement = wrap;
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            if (assetElement != null)
+            {
+                interactionElements.Add(assetElement);
             }
 
             var convId = Guid.NewGuid().ToString();

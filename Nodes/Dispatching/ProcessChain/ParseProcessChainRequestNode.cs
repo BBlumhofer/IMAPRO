@@ -55,6 +55,13 @@ public class ParseProcessChainRequestNode : BTNode
                 if (string.Equals(el.IdShort, "AssetLocation", StringComparison.OrdinalIgnoreCase))
                 {
                     ctx.AssetLocation = el;
+                    // Also create a strongly-typed AssetLocation and expose it on the Context
+                    try
+                    {
+                        var typed = AasSharpClient.Models.AssetLocation.FromCollection(el);
+                        Context.Set("ProcessChain.AssetLocation", typed);
+                    }
+                    catch { }
                     break;
                 }
             }
@@ -87,6 +94,8 @@ public class ParseProcessChainRequestNode : BTNode
 
         Context.Set("ConversationId", ctx.ConversationId);
         Context.Set("ProcessChain.Negotiation", ctx);
+        // Expose the requirements collection under a direct key for iteration nodes
+        Context.Set("ProcessChain.Requirements", ctx.Requirements);
         Logger.LogInformation("ParseProcessChainRequest: parsed {Count} capability requirements", ctx.Requirements.Count);
         return Task.FromResult(NodeStatus.Success);
     }

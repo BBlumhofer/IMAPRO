@@ -77,7 +77,7 @@ public class TopicBridgeAndCallbackTests
         msg.Frame.Type = "testType";
         msg.Frame.Sender = new I40Sharp.Messaging.Models.Participant { Identification = new I40Sharp.Messaging.Models.Identification { Id = "senderX" } };
 
-        registry.InvokeCallbacks(msg);
+        registry.InvokeCallbacks(msg, "/testTopic");
 
         Assert.True(calledType, "MessageType callback should be invoked");
         Assert.True(calledSender, "Sender callback should be invoked");

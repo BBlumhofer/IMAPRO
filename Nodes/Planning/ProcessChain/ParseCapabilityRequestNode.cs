@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using MAS_BT.Core;
+using BaSyx.Models.AdminShell;
 using Microsoft.Extensions.Logging;
 using I40Sharp.Messaging.Models;
 
@@ -26,16 +27,8 @@ public class ParseCapabilityRequestNode : BTNode
             return Task.FromResult(NodeStatus.Failure);
         }
 
-        // Guard: check if this conversation was already processed to prevent reprocessing loops
-        var processedKey = $"Planning.Processed:{request.ConversationId}";
-        if (Context.Get<bool>(processedKey))
-        {
-            Logger.LogDebug("ParseCapabilityRequest: conversation {Conv} already processed, skipping", request.ConversationId);
-            // Clear message to prevent infinite loop
-            Context.Set("LastReceivedMessage", (I40Message?)null);
-            Context.Set("CurrentMessage", (I40Message?)null);
-            return Task.FromResult(NodeStatus.Failure);
-        }
+        // Consume the current message (we rely on the WaitForMessage node to dequeue from the inbox).
+        // After parsing, clear CurrentMessage/LastReceivedMessage so the message isn't reprocessed.
 
         Context.Set("Planning.CapabilityRequest", request);
         Context.Set("RequiredCapability", request.Capability);
@@ -43,13 +36,19 @@ public class ParseCapabilityRequestNode : BTNode
         Context.Set("RequesterRole", request.RequesterRole);
         Context.Set("ConversationId", request.ConversationId);
         
-        // Mark conversation as being processed
-        Context.Set(processedKey, true);
-        
-        // Clear CurrentMessage immediately after parsing to prevent reprocessing in the same loop iteration
-        Context.Set("CurrentMessage", (I40Message?)null);
-        
-        Logger.LogInformation("ParseCapabilityRequest: capability={Capability} requirement={Requirement}", request.Capability, request.RequirementId);
+        // After parsing, clear the message from the blackboard so downstream WaitForMessage/other nodes
+        // will not see it again in this agent's context. The message object was not copied.
+        try
+        {
+            Context.Set("LastReceivedMessage", (I40Message?)null);
+            Context.Set("CurrentMessage", (I40Message?)null);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "ParseCapabilityRequest: failed to clear message context after parsing");
+        }
+
+        Logger.LogInformation("ParseCapabilityRequest: conv={Conv} capability={Capability} requirement={Requirement} requester={Requester}/{Role}", request.ConversationId, request.Capability, request.RequirementId, request.RequesterId, request.RequesterRole);
         return Task.FromResult(NodeStatus.Success);
     }
 }

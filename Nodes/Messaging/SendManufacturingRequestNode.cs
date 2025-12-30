@@ -9,6 +9,7 @@ using I40Sharp.Messaging.Core;
 using I40Sharp.Messaging.Models;
 using MAS_BT.Core;
 using Microsoft.Extensions.Logging;
+using MAS_BT.Nodes.Dispatching.ProcessChain;
 
 namespace MAS_BT.Nodes.Messaging;
 
@@ -48,7 +49,8 @@ public class SendManufacturingRequestNode : BTNode
 
         var ns = Context.Get<string>("config.Namespace") ?? "phuket";
         var topic = ResolveTopic(ns);
-        var conversationId = Guid.NewGuid().ToString();
+            // Use the agent's own id as conversation id (ProductAgent authoritative)
+            var conversationId = Context.AgentId ?? Guid.NewGuid().ToString();
         var messageType = string.IsNullOrWhiteSpace(MessageType)
             ? I40MessageTypes.CALL_FOR_PROPOSAL
             : MessageType.Trim();
@@ -63,22 +65,90 @@ public class SendManufacturingRequestNode : BTNode
             };
 
             // If an AssetLocation submodel is available on the blackboard, include it in the request
-            AasSharpClient.Models.AssetLocationSubmodel? assetLocation = null;
+            SubmodelElement? assetElement = null;
+
+            // 1) Prefer a strongly-typed AssetLocation stored under ProcessChain.AssetLocation
             try
             {
-                assetLocation = Context.Get<AasSharpClient.Models.AssetLocationSubmodel>("AssetLocationSubmodel")
-                                ?? Context.Get<AasSharpClient.Models.AssetLocationSubmodel>("AAS.Submodel.AssetLocation")
-                                ?? Context.Get<AasSharpClient.Models.AssetLocationSubmodel>("AssetLocation");
+                assetElement = Context.Get<AasSharpClient.Models.AssetLocation>("ProcessChain.AssetLocation");
             }
-            catch
+            catch { }
+
+            // 2) Try legacy keys without typed conversion to avoid BTContext conversion warnings
+            if (assetElement == null)
             {
-                // ignore missing/typed entries
+                try
+                {
+                    object? raw = Context.Get("AssetLocationSubmodel") ?? Context.Get("AAS.Submodel.AssetLocation") ?? Context.Get("AssetLocation");
+                    if (raw is AasSharpClient.Models.AssetLocation typed)
+                    {
+                        assetElement = typed;
+                    }
+                    else if (raw is SubmodelElementCollection coll)
+                    {
+                        assetElement = coll;
+                    }
+                    else if (raw is Submodel sm)
+                    {
+                        var candidate = sm.SubmodelElements?.Values?.OfType<SubmodelElementCollection>()
+                            .FirstOrDefault(c => string.Equals(c.IdShort, "AssetLocation", StringComparison.OrdinalIgnoreCase));
+                        if (candidate != null)
+                        {
+                            assetElement = candidate;
+                        }
+                    }
+                }
+                catch { }
             }
 
-            if (assetLocation != null)
+            // 3) Fall back to the negotiation context which may contain the raw SubmodelElementCollection
+            if (assetElement == null)
             {
-                interactionElements.Add(WrapSubmodel(assetLocation, "AssetLocation"));
-                Logger.LogDebug("SendManufacturingRequest: attached AssetLocation to request");
+                try
+                {
+                    var negotiation = Context.Get<ProcessChainNegotiationContext>("ProcessChain.Negotiation");
+                    if (negotiation?.AssetLocation != null)
+                    {
+                        assetElement = negotiation.AssetLocation;
+                    }
+                }
+                catch { }
+            }
+
+            // 4) Finally, try to extract an AssetLocation collection from a loaded AssetLocation submodel
+            if (assetElement == null)
+            {
+                try
+                {
+                    var submodel = Context.Get<Submodel>("AssetLocationSubmodel") ?? Context.Get<Submodel>("AAS.Submodel.AssetLocation");
+                    if (submodel?.SubmodelElements?.Values != null)
+                    {
+                        var candidate = submodel.SubmodelElements.Values
+                            .OfType<SubmodelElementCollection>()
+                            .FirstOrDefault(c => string.Equals(c.IdShort, "AssetLocation", StringComparison.OrdinalIgnoreCase));
+                        if (candidate != null)
+                        {
+                            assetElement = candidate;
+                        }
+                        else
+                        {
+                            // wrap all elements into a collection as a last resort
+                            var wrap = new SubmodelElementCollection("AssetLocation");
+                            foreach (var e in submodel.SubmodelElements.Values)
+                            {
+                                wrap.Add(e);
+                            }
+                            assetElement = wrap;
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            if (assetElement != null)
+            {
+                interactionElements.Add(assetElement);
+                Logger.LogDebug("SendManufacturingRequest: attached AssetLocation to request (source={Source})", assetElement.GetType().Name);
             }
 
             // Log interaction elements for debugging to ensure AssetLocation presence

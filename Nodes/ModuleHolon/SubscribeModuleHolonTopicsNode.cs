@@ -28,7 +28,8 @@ public class SubscribeModuleHolonTopicsNode : BTNode
         var moduleIdentifiers = ModuleContextHelper.ResolveModuleIdentifiers(Context);
         var topics = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            $"/{ns}/Planning/OfferedCapability/Request"
+            $"/{ns}/{primaryModuleId}/OfferedCapability/Request",
+            $"/{ns}/ModuleHolon/broadcast/OfferedCapability/Request"
         };
 
         foreach (var moduleId in moduleIdentifiers)
@@ -39,6 +40,7 @@ public class SubscribeModuleHolonTopicsNode : BTNode
             topics.Add($"/{ns}/{moduleId}/register");
             topics.Add($"/{ns}/{moduleId}/Inventory");
             topics.Add($"/{ns}/{moduleId}/Neighbors");
+            topics.Add($"/{ns}/{moduleId}/OfferedCapability/Response");
         }
 
         var ok = 0;

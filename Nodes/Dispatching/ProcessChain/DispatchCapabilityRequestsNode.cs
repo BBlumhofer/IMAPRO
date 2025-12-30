@@ -188,12 +188,12 @@ public class DispatchCapabilityRequestsNode : BTNode
         for (var requirementIndex = 0; requirementIndex < ctx.Requirements.Count; requirementIndex++)
         {
             var requirement = ctx.Requirements[requirementIndex];
-            var selfId = Context.AgentId;
+            var agentId = Context.AgentId;
             
             var allModules = state.Modules
                 .Where(m => m != null && !string.IsNullOrWhiteSpace(m.ModuleId))
                 .Where(m => !string.Equals(m.ModuleId, similarityAgentId, StringComparison.OrdinalIgnoreCase))
-                .Where(m => !string.Equals(m.ModuleId, selfId, StringComparison.OrdinalIgnoreCase))
+                .Where(m => !string.Equals(m.ModuleId, agentId, StringComparison.OrdinalIgnoreCase))
                 // Exclude namespace as module ID (e.g., "_PHUKET", "phuket")
                 .Where(m => !string.Equals(m.ModuleId, ns, StringComparison.OrdinalIgnoreCase))
                 .Where(m => !m.ModuleId.StartsWith("_", StringComparison.OrdinalIgnoreCase) || m.ModuleId.Length < 2)
@@ -387,7 +387,7 @@ public class DispatchCapabilityRequestsNode : BTNode
                             allModules = state.Modules
                                 .Where(m => m != null && !string.IsNullOrWhiteSpace(m.ModuleId))
                                 .Where(m => !string.Equals(m.ModuleId, similarityAgentId, StringComparison.OrdinalIgnoreCase))
-                                .Where(m => !string.Equals(m.ModuleId, selfId, StringComparison.OrdinalIgnoreCase))
+                                .Where(m => !string.Equals(m.ModuleId, agentId, StringComparison.OrdinalIgnoreCase))
                                 .Where(m => !string.Equals(m.ModuleId, ns, StringComparison.OrdinalIgnoreCase))
                                 .Where(m => !m.ModuleId.StartsWith("_", StringComparison.OrdinalIgnoreCase) || m.ModuleId.Length < 2)
                                 .Where(m => !m.ModuleId.Contains("_Planning", StringComparison.OrdinalIgnoreCase)
@@ -432,6 +432,14 @@ public class DispatchCapabilityRequestsNode : BTNode
                         }
                     }
             }
+
+            // Setze product-basierte ConversationId: ProductId#RequirementId
+            if (string.IsNullOrWhiteSpace(ctx.ProductId))
+            {
+                Logger.LogWarning("DispatchCapabilityRequests: ProductId missing in context; falling back to generated id for requirement {RequirementId}", requirement.RequirementId);
+            }
+            ctx.ConversationId = $"{ctx.ProductId ?? Guid.NewGuid().ToString()}#{requirement.RequirementId}";
+            Logger.LogInformation("DispatchCapabilityRequests: using ConversationId={Conv} for Requirement={RequirementId}", ctx.ConversationId, requirement.RequirementId);
 
             foreach (var m in candidateModules)
             {
@@ -489,7 +497,15 @@ public class DispatchCapabilityRequestsNode : BTNode
         }
 
         // Make CollectCapabilityOffer robust: only wait for modules we actually addressed.
-        Context.Set("ProcessChain.ExpectedOfferResponders", expectedOfferResponders.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList());
+        // Important: Exclude the dispatcher itself, namespace, and similarity agent from expected responders
+        var selfId = Context.AgentId;
+        var filteredResponders = expectedOfferResponders
+            .Where(id => !string.Equals(id, selfId, StringComparison.OrdinalIgnoreCase))
+            .Where(id => !string.Equals(id, ns, StringComparison.OrdinalIgnoreCase))
+            .Where(id => !string.Equals(id, similarityAgentId, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        Context.Set("ProcessChain.ExpectedOfferResponders", filteredResponders);
 
         // Provide CfPs for potential re-issue when a target registers after initial dispatch.
         Context.Set("ProcessChain.CfPsByTarget", cfpsByTarget);

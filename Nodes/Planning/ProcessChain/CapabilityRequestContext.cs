@@ -328,5 +328,5 @@ public class CapabilityOfferPlan
     public TimeSpan CycleTime { get; set; } = TimeSpan.FromMinutes(1);
     public double Cost { get; set; } = 0.0;
     public OfferedCapability? OfferedCapability { get; set; }
-    public List<OfferedCapability> SupplementalCapabilities { get; } = new List<OfferedCapability>();
+    public AasSharpClient.Models.Messages.CapabilitySequence SupplementalCapabilities { get; } = new AasSharpClient.Models.Messages.CapabilitySequence("SupplementalCapabilities");
 }

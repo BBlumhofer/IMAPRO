@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using I40Sharp.Messaging;
 using I40Sharp.Messaging.Core;
 using I40Sharp.Messaging.Models;
+// fingerprinting removed — reverted to simple forwarding logic
 
 namespace MAS_BT.Nodes.ModuleHolon;
 
@@ -16,13 +17,17 @@ namespace MAS_BT.Nodes.ModuleHolon;
 /// </summary>
 public class ForwardCapabilityRequestsNode : BTNode
 {
-    public string TargetTopicTemplate { get; set; } = "/{Namespace}/{ModuleId}/Planning/OfferedCapability/Request";
+    public string TargetTopicTemplate { get; set; } = "/{Namespace}/{ModuleId}/OfferedCapability/Request";
     public string ExpectedSenderRole { get; set; } = "Dispatching";
+    public string BroadcastTopicTemplate { get; set; } = "/{Namespace}/ModuleHolon/broadcast/OfferedCapability/Request";
+    public string InternalResponseTopicTemplate { get; set; } = "/{Namespace}/{ModuleId}/OfferedCapability/Response";
 
-    private readonly ConcurrentQueue<I40Message> _pendingMessages = new();
-    private readonly HashSet<string> _forwardedConversations = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _forwardedConvModule = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, (string requesterId, string requesterRole)> _originalRequesters = new(StringComparer.OrdinalIgnoreCase);
+    // previously had a recent-fingerprint cache here; removed per revert request
     private bool _listenerRegistered;
+    private readonly object _listenerLock = new();
+    private Action<I40Message, string>? _broadcastCallback;
+    private Action<I40Message, string>? _internalResponseCallback;
 
     public ForwardCapabilityRequestsNode() : base("ForwardCapabilityRequests")
     {
@@ -36,171 +41,153 @@ public class ForwardCapabilityRequestsNode : BTNode
             Logger.LogError("ForwardCapabilityRequests: MessagingClient unavailable");
             return NodeStatus.Failure;
         }
-
+        // Ensure the persistent bridge listener is registered; the listener itself performs the forwarding.
         EnsureListener(client);
-
-        if (!_pendingMessages.TryDequeue(out var message))
-        {
-            return NodeStatus.Failure; // No CfP waiting
-        }
-
-        var ns = Context.Get<string>("config.Namespace") ?? Context.Get<string>("Namespace") ?? "phuket";
-        var moduleId = Context.Get<string>("config.Agent.ModuleId") 
-                       ?? Context.Get<string>("config.Agent.AgentId") 
-                       ?? Context.AgentId 
-                       ?? string.Empty;
-        var agentRole = Context.AgentRole ?? "ModuleHolon";
-
-        if (string.IsNullOrWhiteSpace(moduleId))
-        {
-            Logger.LogError("ForwardCapabilityRequests: ModuleId is null or empty! Cannot forward CfP.");
-            return NodeStatus.Failure;
-        }
-
-        // Log receiver info before check
-        Logger.LogInformation(
-            "ForwardCapabilityRequests: checking targeting for moduleId={ModuleId}, agentRole={AgentRole}, receiver.id={ReceiverId}, receiver.role={ReceiverRole}",
-            moduleId,
-            agentRole,
-            message.Frame?.Receiver?.Identification?.Id ?? "null",
-            message.Frame?.Receiver?.Role?.Name ?? "null"
-        );
-
-        // Check if this message is targeted at this ModuleHolon
-        if (!MessageTargetingHelper.IsTargetedAtAgent(message, moduleId, agentRole))
-        {
-            Logger.LogWarning(
-                "ForwardCapabilityRequests: Message NOT targeted at {ModuleId} (receiver.id={ReceiverId}, receiver.role={ReceiverRole}), skipping",
-                moduleId,
-                message.Frame?.Receiver?.Identification?.Id ?? "null",
-                message.Frame?.Receiver?.Role?.Name ?? "null"
-            );
-            return NodeStatus.Success; // Not an error, just not for us
-        }
-
-        var conv = message.Frame?.ConversationId ?? Guid.NewGuid().ToString();
-        Context.Set("LastReceivedMessage", message);
-        Context.Set("ForwardedConversationId", conv);
-
-        // Store original requester (Dispatcher) for later reply
-        var originalRequesterId = message.Frame?.Sender?.Identification?.Id;
-        if (!string.IsNullOrWhiteSpace(originalRequesterId))
-        {
-            Context.Set($"OriginalRequester_{conv}", originalRequesterId);
-        }
-
-        // Check if already forwarded
-        var convModuleKey = conv + ":" + moduleId;
-        if (_forwardedConvModule.Contains(convModuleKey))
-        {
-            Logger.LogDebug("ForwardCapabilityRequests: already forwarded conversation {Conv} to module {Module}, skipping", conv, moduleId);
-            return NodeStatus.Success;
-        }
-
-        // Build internal forward topic
-        var targetTopic = TargetTopicTemplate
-            .Replace("{Namespace}", ns)
-            .Replace("{ModuleId}", moduleId);
-
-        Logger.LogInformation(
-            "ForwardCapabilityRequests: built targetTopic={Topic} from template={Template}, ns={Ns}, moduleId={ModuleId}",
-            targetTopic,
-            TargetTopicTemplate,
-            ns,
-            moduleId
-        );
-
-        // Determine message type (ManufacturingSequence vs ProcessChain)
-        var incomingType = message.Frame?.Type ?? string.Empty;
-        var isManufacturing = incomingType.IndexOf("ManufacturingSequence", StringComparison.OrdinalIgnoreCase) >= 0;
-
-        if (isManufacturing && targetTopic.IndexOf("ProcessChain", StringComparison.OrdinalIgnoreCase) >= 0)
-        {
-            targetTopic = targetTopic.Replace("ProcessChain", "ManufacturingSequence");
-        }
-
-        // Forward to internal Planning sub-holon with updated receiver
-        try
-        {
-            var planningAgentId = $"{moduleId}_Planning";
-            var forwardedMessage = MessageTargetingHelper.CloneWithNewReceiver(message, planningAgentId, "PlanningHolon");
-
-            // IMPORTANT: Keep original sender (Dispatcher) - ModuleHolon is just a forwarder
-            // Planning needs to know the original requester to send the response back
-
-            await client.PublishAsync(forwardedMessage, targetTopic).ConfigureAwait(false);
-            _forwardedConvModule.Add(convModuleKey);
-
-            Logger.LogInformation(
-                "ForwardCapabilityRequests: forwarded CfP from {Sender} to internal Planning at {Topic} (conv={Conv})",
-                message.Frame?.Sender?.Identification?.Id,
-                targetTopic,
-                conv
-            );
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "ForwardCapabilityRequests: failed to forward conversation {Conv} to {Module}", conv, moduleId);
-            return NodeStatus.Failure;
-        }
-
-        if (!string.IsNullOrWhiteSpace(conv))
-        {
-            _forwardedConversations.Add(conv);
-        }
-
         return NodeStatus.Success;
     }
 
     private void EnsureListener(MessagingClient client)
     {
-        if (_listenerRegistered)
+        var globalKey = "ForwardCapabilityRequests.ListenerRegistered";
+        // If another node instance already registered the listener for this agent, skip registration.
+        try
         {
-            return;
+            if (Context.Get<bool>(globalKey))
+            {
+                return;
+            }
         }
+        catch { }
+
+        lock (_listenerLock)
+        {
+            if (_listenerRegistered || Context.Get<bool>(globalKey))
+            {
+                return;
+            }
 
         var ns = Context.Get<string>("config.Namespace") ?? Context.Get<string>("Namespace") ?? "phuket";
-        
-        // Register listener for role-based broadcast CfPs
-        client.OnMessage(message =>
+
+        // Subscribe and register a thin topic-bridge style callback for broadcast CfPs
+        var broadcastTopic = BroadcastTopicTemplate.Replace("{Namespace}", ns);
+        try
         {
-            try
+            client.SubscribeAsync(broadcastTopic).GetAwaiter().GetResult();
+            _broadcastCallback = (message, topic) =>
             {
-                if (message == null || !MatchesDispatcherOffer(message))
+                try
                 {
-                    return;
-                }
+                    if (message == null) return;
+                    if (!MatchesDispatcherOffer(message)) return;
 
-                // Prevent forwarding messages sent by this agent (avoid self-forward loops)
-                var senderId = message.Frame?.Sender?.Identification?.Id;
-                if (!string.IsNullOrWhiteSpace(senderId) && string.Equals(senderId, Context.AgentId, StringComparison.OrdinalIgnoreCase))
+                    // Prevent forwarding messages sent by this agent (avoid self-forward loops)
+                    var senderId = message.Frame?.Sender?.Identification?.Id;
+                    if (!string.IsNullOrWhiteSpace(senderId) && string.Equals(senderId, Context.AgentId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+
+                    // Simple bridge: forward to internal target topic without waiting
+                    var moduleId = Context.Get<string>("config.Agent.ModuleId")
+                                   ?? Context.Get<string>("config.Agent.AgentId")
+                                   ?? Context.AgentId
+                                   ?? string.Empty;
+                    var targetTopic = TargetTopicTemplate.Replace("{Namespace}", ns).Replace("{ModuleId}", moduleId);
+                    var incomingType = message.Frame?.Type ?? string.Empty;
+                    var isManufacturing = incomingType.IndexOf("ManufacturingSequence", StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (isManufacturing && targetTopic.IndexOf("ProcessChain", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        targetTopic = targetTopic.Replace("ProcessChain", "ManufacturingSequence");
+                    }
+
+                    var planningAgentId = moduleId;
+                    var forwardedMessage = MessageTargetingHelper.CloneWithNewReceiver(message, planningAgentId, "PlanningHolon");
+
+                    var conversationId = message.Frame?.ConversationId;
+                    var originalRequesterId = message.Frame?.Sender?.Identification?.Id;
+                    var originalRequesterRole = message.Frame?.Sender?.Role?.Name ?? string.Empty;
+                    if (!string.IsNullOrWhiteSpace(conversationId) && !string.IsNullOrWhiteSpace(originalRequesterId))
+                    {
+                        _originalRequesters[conversationId] = (originalRequesterId, originalRequesterRole);
+                        try { Context.Set($"OriginalRequester_{conversationId}", originalRequesterId); if (!string.IsNullOrWhiteSpace(originalRequesterRole)) Context.Set($"OriginalRequesterRole_{conversationId}", originalRequesterRole); } catch { }
+                    }
+
+                    _ = client.PublishAsync(forwardedMessage, targetTopic);
+                    Logger.LogInformation("ForwardCapabilityRequests: bridged CfP from {Sender} to {Topic}", senderId, targetTopic);
+                }
+                catch (Exception ex)
                 {
-                    return;
+                    Logger.LogWarning(ex, "ForwardCapabilityRequests: exception in broadcast bridge callback");
                 }
+            };
+            client.OnTopic(broadcastTopic, _broadcastCallback);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "ForwardCapabilityRequests: failed to subscribe/register broadcast topic {Topic}", broadcastTopic);
+        }
 
-                // Avoid duplicate forwards
-                var conv = message.Frame?.ConversationId ?? string.Empty;
-                if (!string.IsNullOrWhiteSpace(conv) && _forwardedConversations.Contains(conv))
-                {
-                    return;
-                }
-
-                _pendingMessages.Enqueue(message);
-                Logger.LogInformation(
-                    "ForwardCapabilityRequests: queued CfP conversation {Conv} from {Sender} (queue={Count})",
-                    message.Frame?.ConversationId,
-                    message.Frame?.Sender?.Identification?.Id,
-                    _pendingMessages.Count
-                );
-            }
-            catch (Exception ex)
+        // Subscribe and register a thin bridge for internal Planning responses -> external requester
+        try
+        {
+            var moduleId = Context.Get<string>("config.Agent.ModuleId")
+                           ?? Context.Get<string>("config.Agent.AgentId")
+                           ?? Context.AgentId
+                           ?? string.Empty;
+            var internalResponseTopic = InternalResponseTopicTemplate.Replace("{Namespace}", ns).Replace("{ModuleId}", moduleId);
+            client.SubscribeAsync(internalResponseTopic).GetAwaiter().GetResult();
+            _internalResponseCallback = (message, topic) =>
             {
-                Logger.LogWarning(ex, "ForwardCapabilityRequests: exception while queuing CfP");
-            }
-        });
+                try
+                {
+                    if (message == null) return;
+                    var t = message.Frame?.Type ?? string.Empty;
+                    var baseType = t.Split('/')[0].ToLowerInvariant();
+                    // Only forward proposals/refusals
+                    if (!baseType.StartsWith("propos") && !baseType.StartsWith("refus")) return;
 
-        _listenerRegistered = true;
-        Logger.LogInformation("ForwardCapabilityRequests: registered CfP listener for namespace {Namespace}", ns);
+                    var conv = message.Frame?.ConversationId;
+                    if (string.IsNullOrWhiteSpace(conv)) return;
+                    if (!_originalRequesters.TryGetValue(conv, out var orig)) return;
+
+                    var receiverId = orig.requesterId;
+                    var receiverRole = string.IsNullOrWhiteSpace(orig.requesterRole) ? "Dispatching" : orig.requesterRole;
+
+                    // Ensure receiver is set on message
+                    try
+                    {
+                        if (message.Frame?.Receiver == null)
+                        {
+                            message.Frame.Receiver = new I40Sharp.Messaging.Models.Participant();
+                        }
+                        message.Frame.Receiver.Identification = message.Frame.Receiver.Identification ?? new I40Sharp.Messaging.Models.Identification();
+                        message.Frame.Receiver.Identification.Id = receiverId;
+                        message.Frame.Receiver.Role = new I40Sharp.Messaging.Models.Role { Name = receiverRole };
+                    }
+                    catch { }
+
+                    var outTopic = $"/{ns}/{receiverId}/OfferedCapability/Response";
+                    _ = client.PublishAsync(message, outTopic);
+                    Logger.LogInformation("ForwardCapabilityRequests: bridged internal response conv={Conv} to external requester {Receiver} on {Topic}", conv, receiverId, outTopic);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "ForwardCapabilityRequests: exception in internal response bridge callback");
+                }
+            };
+            client.OnTopic(internalResponseTopic, _internalResponseCallback);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "ForwardCapabilityRequests: failed to subscribe/register internal response topic");
+        }
+
+            _listenerRegistered = true;
+            try { Context.Set(globalKey, true); } catch { }
+            var moduleIdLog = Context.Get<string>("config.Agent.ModuleId") ?? Context.AgentId ?? string.Empty;
+            var agentIdLog = Context.Get<string>("config.Agent.AgentId") ?? Context.AgentId ?? string.Empty;
+            Logger.LogInformation("ForwardCapabilityRequests: registered CfP listener for namespace {Namespace} (Agent={Agent} Module={Module})", ns, agentIdLog, moduleIdLog);
+        }
     }
 
     private bool MatchesDispatcherOffer(I40Message message)
@@ -227,4 +214,31 @@ public class ForwardCapabilityRequestsNode : BTNode
 
         return false;
     }
+
+    public override Task OnReset()
+    {
+        try
+        {
+            var client = Context.Get<MessagingClient>("MessagingClient");
+            var ns = Context.Get<string>("config.Namespace") ?? Context.Get<string>("Namespace") ?? "phuket";
+            var broadcastTopic = BroadcastTopicTemplate.Replace("{Namespace}", ns);
+            var moduleId = Context.Get<string>("config.Agent.ModuleId")
+                           ?? Context.Get<string>("config.Agent.AgentId")
+                           ?? Context.AgentId
+                           ?? string.Empty;
+            var internalResponseTopic = InternalResponseTopicTemplate.Replace("{Namespace}", ns).Replace("{ModuleId}", moduleId);
+
+            // Intentionally do NOT unregister topic callbacks here. The listener is intended to be long-lived
+            // for the lifetime of the agent process. Repeated BT resets caused repeated unsubscribe/subscribe
+            // cycles which led to duplicate registrations. Keep callbacks active.
+        }
+        catch { }
+
+        // keep registrations intact; only clear transient per-conversation state
+        _originalRequesters.Clear();
+        return Task.CompletedTask;
+    }
+
+    // ComputeFingerprint removed
 }
+

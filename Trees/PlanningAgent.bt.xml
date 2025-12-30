@@ -16,7 +16,8 @@
       <LoadCapabilityDescriptionSubmodel name="LoadCapabilityDescription" SubmodelRepositoryEndpoint="{config.AAS.SubmodelRepositoryEndpoint}" />
       <ExtractCapabilityNames name="ExtractCapabilities" SourceKey="CapabilityDescriptionSubmodel" TargetKey="Capabilities" />
       <PublishCapabilities name="PublishCapabilities" />
-      <SubscribeAgentTopics name="SubscribeTopics" Role="{config.Agent.Role}" />
+      <SubscribeToTopic name="SubscribeOfferedRequests" Topic="/{Namespace}/{ModuleId}/OfferedCapability/Request" />
+      <SubscribeToTopic name="SubscribeOfferedResponses" Topic="/{Namespace}/{ModuleId}/OfferedCapability/Response" />
       <SubscribeToTopic name="SubscribeTransportResponses" Topic="/{Namespace}/TransportPlan/Response" />
       <SimpleRegisterAgent name="RegisterPlanning" ParentAgent="{config.Agent.ModuleId}" WaitForCapabilitiesBeforeRegister="true" />
       <SyncAgentToNeo4j name="SyncPlanningToGraph" />
@@ -32,18 +33,18 @@
         <Repeat name="CapabilityOfferLoop" num_cycles="-1">
           <Fallback name="OfferOrIdle">
             <Sequence name="AwaitThenRespondOrRefuse">
-              <WaitForMessage name="AwaitCapabilityRequest" ExpectedTypes="callForProposal,callForProposal/OfferedCapability,callForProposal/ProcessChain,callForProposal/ManufacturingSequence" ExpectedTopic="/{Namespace}/{ModuleId}/Planning/OfferedCapability/Request" TimeoutSeconds="86400" />
+              <WaitForMessage name="AwaitCapabilityRequest" ExpectedTypes="callForProposal,callForProposal/OfferedCapability,callForProposal/ProcessChain,callForProposal/ManufacturingSequence" ExpectedTopic="/{Namespace}/{ModuleId}/OfferedCapability/Request" TimeoutSeconds="86400" />
               <Fallback name="RespondOrRefuseAfterMessage">
                 <Sequence name="RespondToCapabilityRequest">
                   <ParseCapabilityRequest name="ParseCapabilityRequest" />
                   <CapabilityMatchmaking name="ExecuteCapabilityMatchmaking" RequiredCapability="{RequiredCapability}" />
                   <CheckConstraints name="CheckConstraints" />
                   <RequestTransport name="RequestTransport" FromStation="{ModuleId}" ToStation="{TransportTarget}" />
+                  <CollectTransportResponses name="CollectTransportResponses" TimeoutSeconds="5" />
                   <EvaluateRequestTransportResponse name="EvaluateTransportResponse" />
                   <FeasibilityCheck name="FeasibilityCheck" />
                   <PlanCapabilityOffer name="PlanCapabilityOffer" />
                   <SendCapabilityOffer name="SendCapabilityOffer" />
-                  <Wait name="OfferCooldown" DelayMs="200" />
                 </Sequence>
                 <Sequence name="SendCapabilityRefusal">
                   <SendPlanningRefusal name="SendPlanningRefusal" ReceiverId="{RequesterId}" />
@@ -154,6 +155,9 @@
     <Action ID="RequestTransport">
       <input_port name="FromStation"/>
       <input_port name="ToStation"/>
+    </Action>
+    <Action ID="CollectTransportResponses">
+      <input_port name="TimeoutSeconds" default="5" />
     </Action>
     <Action ID="EvaluateRequestTransportResponse"/>
     <Action ID="CheckScheduleFeasibility"/>

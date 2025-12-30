@@ -35,6 +35,8 @@ public class CollectCapabilityOfferNode : BTNode
     private bool _drainedInbox;
     private bool _expectedRespondersBound;
     private readonly HashSet<string> _sequentiallyCompletedRequirements = new(StringComparer.OrdinalIgnoreCase);
+    private Action<I40Message>? _conversationCallback;
+    private string? _responseTopic;
 
     public int TimeoutSeconds { get; set; } = 5;
 
@@ -52,7 +54,8 @@ public class CollectCapabilityOfferNode : BTNode
 
         if (!_subscribed)
         {
-            client.OnConversation(ctx.ConversationId, msg =>
+            // Subscribe to conversation-based messages
+            _conversationCallback = msg =>
             {
                 Logger.LogInformation(
                     "CollectCapabilityOffer: received message from {Sender} type={Type} receiver={Receiver}",
@@ -60,7 +63,24 @@ public class CollectCapabilityOfferNode : BTNode
                     msg.Frame?.Type ?? "unknown",
                     msg.Frame?.Receiver?.Identification?.Id ?? "unknown");
                 _incoming.Enqueue(msg);
-            });
+            };
+            client.OnConversation(ctx.ConversationId, _conversationCallback);
+            
+            // CRITICAL FIX: Also subscribe to the Response topic where modules send their replies
+            // This ensures we receive responses that come on the topic-based channel
+            var ns = Context.Get<string>("config.Namespace") ?? Context.Get<string>("Namespace") ?? "phuket";
+            var agentId = Context.AgentId;
+            _responseTopic = $"/{ns}/{agentId}/OfferedCapability/Response";
+            try
+            {
+                await client.SubscribeAsync(_responseTopic).ConfigureAwait(false);
+                Logger.LogInformation("CollectCapabilityOffer: subscribed to response topic {Topic}", _responseTopic);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "CollectCapabilityOffer: failed to subscribe to {Topic}", _responseTopic);
+            }
+            
             _startTime = DateTime.UtcNow;
             _subscribed = true;
             _drainedInbox = false;
@@ -69,8 +89,10 @@ public class CollectCapabilityOfferNode : BTNode
 
             if (!_expectedRespondersBound)
             {
-                var state = Context.Get<DispatchingState>("DispatchingState");
-                _expectedModules = state?.Modules.Count ?? 0;
+                // Wait for DispatchCapabilityRequests to set the correct list
+                // In parallel mode, Dispatch may not have run yet on first tick
+                // Return Running to wait for the list to be set
+                return NodeStatus.Running;
             }
 
             Logger.LogInformation("CollectCapabilityOffer: waiting for responses from {Count} modules", _expectedModules);
@@ -79,6 +101,16 @@ public class CollectCapabilityOfferNode : BTNode
         else if (!_expectedRespondersBound)
         {
             TryBindExpectedResponders();
+            
+            if (_expectedRespondersBound)
+            {
+                Logger.LogInformation("CollectCapabilityOffer: successfully bound expected responders on retry ({Count} modules)", _expectedModules);
+            }
+            else
+            {
+                // Still not bound - keep waiting for DispatchCapabilityRequests to set the list
+                return NodeStatus.Running;
+            }
         }
 
         // Drain buffered messages that may have arrived before the conversation callback was registered.
@@ -94,6 +126,13 @@ public class CollectCapabilityOfferNode : BTNode
             ProcessMessage(ctx, message);
         }
 
+        // Check if sequential dispatch is enabled
+        var isSequentialDispatch = Context.Get<bool>("ProcessChain.SequentialDispatch");
+        
+        // For sequential dispatch: if at least one requirement has offers, we can proceed
+        // The dispatcher will handle sending CfPs for remaining requirements
+        var anyRequirementFulfilled = ctx.Requirements.Any(r => r.CapabilityOffers.Count > 0 || r.OfferedCapabilitySequences.Count > 0);
+        
         var complete = ctx.Requirements.Count > 0 && ctx.Requirements.All(r => r.CapabilityOffers.Count > 0 || r.OfferedCapabilitySequences.Count > 0);
         var allModulesResponded = _expectedModules == 0
             || (_expectedModuleIds != null && _expectedModuleIds.Count > 0
@@ -102,28 +141,40 @@ public class CollectCapabilityOfferNode : BTNode
         // Require at least one recorded offer before treating "all modules responded" as completion
         var anyOffersRecorded = ctx.Requirements.Any(r => r.CapabilityOffers.Count > 0 || r.OfferedCapabilitySequences.Count > 0);
         // Build and log expected repliers vs their current reply status for debugging
-        try
+        // Rate-limit logging to every 10s to avoid spam
+        var shouldLogStatus = (DateTime.UtcNow - _startTime).TotalSeconds % 10 < 0.5;
+        if (shouldLogStatus)
         {
-            List<string> expectedList;
-            if (_expectedModuleIds != null && _expectedModuleIds.Count > 0)
+            try
             {
-                expectedList = _expectedModuleIds.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
-            }
-            else
-            {
-                var state = Context.Get<DispatchingState>("DispatchingState");
-                expectedList = state?.Modules.Select(m => m.ModuleId).Where(id => !string.IsNullOrWhiteSpace(id)).Select(NormalizeModuleId).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList()
-                               ?? new List<string>();
-            }
+                List<string> expectedList;
+                if (_expectedModuleIds != null && _expectedModuleIds.Count > 0)
+                {
+                    expectedList = _expectedModuleIds.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
+                }
+                else
+                {
+                    var state = Context.Get<DispatchingState>("DispatchingState");
+                    expectedList = state?.Modules.Select(m => m.ModuleId).Where(id => !string.IsNullOrWhiteSpace(id)).Select(NormalizeModuleId).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList()
+                                   ?? new List<string>();
+                }
 
-            var replies = expectedList.Select(id => _replyStatus.TryGetValue(id, out var v) ? v : "None").ToList();
-            Logger.LogInformation("CollectCapabilityOffer: expectedRepliers=[{Expected}] replies=[{Replies}]", string.Join(',', expectedList), string.Join(',', replies));
+                var replies = expectedList.Select(id => _replyStatus.TryGetValue(id, out var v) ? v : "None").ToList();
+                Logger.LogInformation("CollectCapabilityOffer: expectedRepliers=[{Expected}] replies=[{Replies}]", string.Join(',', expectedList), string.Join(',', replies));
+            }
+            catch { }
         }
-        catch { }
         var timedOut = (DateTime.UtcNow - _startTime).TotalSeconds >= TimeoutSeconds;
 
         // Determine if all responders were refusals (quick early-fail)
         var allRespondersRefused = _respondedModules.Count > 0 && _respondedModules.All(id => _refusedModules.Contains(id));
+        
+        // For sequential dispatch: check if all expected modules have responded (offer or refusal)
+        // If yes, signal the coordinator so the dispatcher can proceed to the next requirement
+        if (isSequentialDispatch && allModulesResponded)
+        {
+            TryNotifySequentialRequirementsCompleted(ctx);
+        }
 
         if (complete || (allModulesResponded && (anyOffersRecorded || allRespondersRefused)) || timedOut)
         {
@@ -185,6 +236,23 @@ public class CollectCapabilityOfferNode : BTNode
 
     public override Task OnReset()
     {
+        // Remove registered callbacks and subscriptions to avoid duplicate invocations
+        try
+        {
+            var client = Context.Get<MessagingClient>("MessagingClient");
+            var ctx = Context.Get<ProcessChainNegotiationContext>("ProcessChain.Negotiation");
+            if (client != null && _conversationCallback != null && ctx != null && !string.IsNullOrWhiteSpace(ctx.ConversationId))
+            {
+                try { client.OffConversation(ctx.ConversationId, _conversationCallback); } catch { }
+            }
+
+            if (client != null && !string.IsNullOrWhiteSpace(_responseTopic))
+            {
+                try { client.UnsubscribeAsync(_responseTopic).GetAwaiter().GetResult(); } catch { }
+            }
+        }
+        catch { }
+
         _incoming.Clear();
         _respondedModules.Clear();
         _reissuedCfPs.Clear();
@@ -195,6 +263,8 @@ public class CollectCapabilityOfferNode : BTNode
         _drainedInbox = false;
         _expectedRespondersBound = false;
         _sequentiallyCompletedRequirements.Clear();
+        _conversationCallback = null;
+        _responseTopic = null;
         return Task.CompletedTask;
     }
 
@@ -252,13 +322,32 @@ public class CollectCapabilityOfferNode : BTNode
 
     private void ProcessMessage(ProcessChainNegotiationContext ctx, I40Message message)
     {
+        var messageType = message.Frame?.Type ?? string.Empty;
+        var messageBaseType = messageType.Split('/')[0];
+        var sender = message.Frame?.Sender?.Identification?.Id;
+        var senderModuleId = NormalizeModuleId(sender);
+        
+        // CRITICAL FIX: For refusals, we must mark the module as responded even if we can't resolve the requirement
+        // Otherwise the collector waits forever for modules that have already refused
+        var isRefusal = string.Equals(messageBaseType, I40MessageTypes.REFUSE_PROPOSAL, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(messageBaseType, I40MessageTypes.REFUSAL, StringComparison.OrdinalIgnoreCase);
+        
+        if (isRefusal && !string.IsNullOrWhiteSpace(senderModuleId))
+        {
+            _respondedModules.Add(senderModuleId);
+            _refusedModules.Add(senderModuleId);
+            _replyStatus[senderModuleId] = "Refusal";
+            Logger.LogInformation("CollectCapabilityOffer: module {Sender} refused (conv={Conv})", sender, message?.Frame?.ConversationId ?? "<none>");
+            return; // Refusals don't need requirement matching
+        }
+        
         var requirement = ResolveRequirement(ctx, message);
         if (requirement == null)
         {
             Logger.LogWarning("CollectCapabilityOffer: received message that does not match any requirement. Conv={Conv} Type={Type} Sender={Sender}",
                 message?.Frame?.ConversationId ?? "<none>",
-                message?.Frame?.Type ?? "<none>",
-                message?.Frame?.Sender?.Identification?.Id ?? "<none>");
+                messageType,
+                sender);
 
             // Dump interaction elements for debugging
             if (message?.InteractionElements != null)
@@ -272,12 +361,8 @@ public class CollectCapabilityOfferNode : BTNode
             }
             return;
         }
-
-        var messageType = message.Frame?.Type ?? string.Empty;
         // Support message types with semantic subtypes (e.g. "proposal/ManufacturingSequence").
-        var messageBaseType = messageType.Split('/')[0];
-        var sender = message.Frame?.Sender?.Identification?.Id;
-        var senderModuleId = NormalizeModuleId(sender);
+        // Note: messageBaseType, sender, senderModuleId already defined above
         var now = DateTime.UtcNow;
         var sinceStartMs = (_startTime == default) ? 0.0 : (now - _startTime).TotalMilliseconds;
         Logger.LogInformation("CollectCapabilityOffer: processing incoming {Type} from {SenderModule} at {Now:o} (+{SinceStart:F1}ms since start)", messageType, senderModuleId ?? "<unknown>", now, sinceStartMs);
@@ -394,17 +479,7 @@ public class CollectCapabilityOfferNode : BTNode
                 throw;
             }
         }
-        else if (string.Equals(messageBaseType, I40MessageTypes.REFUSE_PROPOSAL, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(messageBaseType, I40MessageTypes.REFUSAL, StringComparison.OrdinalIgnoreCase))
-        {
-            if (!string.IsNullOrWhiteSpace(senderModuleId))
-            {
-                _respondedModules.Add(senderModuleId);
-                _refusedModules.Add(senderModuleId);
-                _replyStatus[senderModuleId] = "Refusal";
-            }
-            Logger.LogInformation("CollectCapabilityOffer: module {Sender} refused requirement {Requirement}", sender, requirement.RequirementId);
-        }
+        // Note: Refusals are now handled at the beginning of ProcessMessage
     }
 
     private static string NormalizeModuleId(string? senderId)
@@ -511,7 +586,150 @@ public class CollectCapabilityOfferNode : BTNode
         {
             coordinator.MarkRequirementCompleted(requirementId);
             Logger.LogInformation("CollectCapabilityOffer: sequential requirement {RequirementId} satisfied", requirementId);
+            
+            // Update AssetLocation in NegotiationContext for next requirement (Manufacturing Sequence pattern)
+            // This ensures that the next capability request includes the location of the module that will execute the current capability
+            UpdateAssetLocationForNextRequirement(requirement);
         }
+    }
+    
+    private void TryNotifySequentialRequirementsCompleted(ProcessChainNegotiationContext ctx)
+    {
+        // For sequential dispatch: signal the coordinator for requirements that haven't been signaled yet
+        // but for which all expected modules have responded (even if all refused)
+        
+        var coordinator = Context.Get<SequentialRequirementCoordinator>("ProcessChain.SequentialCoordinator");
+        if (coordinator == null)
+        {
+            return;
+        }
+        
+        foreach (var req in ctx.Requirements)
+        {
+            if (_sequentiallyCompletedRequirements.Contains(req.RequirementId))
+            {
+                continue; // Already signaled
+            }
+            
+            // Check if all expected modules have responded (we can't determine per-requirement, so we check globally)
+            // This is a simplification - ideally we'd track per-requirement expected modules
+            var allRespondedForThisReq = _expectedModuleIds != null && _expectedModuleIds.Count > 0
+                && _expectedModuleIds.All(id => _respondedModules.Contains(id));
+            
+            if (allRespondedForThisReq)
+            {
+                if (_sequentiallyCompletedRequirements.Add(req.RequirementId))
+                {
+                    coordinator.MarkRequirementCompleted(req.RequirementId);
+                    Logger.LogInformation("CollectCapabilityOffer: sequential requirement {RequirementId} completed (all modules responded, offers={OfferCount})", 
+                        req.RequirementId, req.CapabilityOffers.Count + req.OfferedCapabilitySequences.Count);
+                }
+            }
+        }
+    }
+    
+    private void UpdateAssetLocationForNextRequirement(CapabilityRequirement completedRequirement)
+    {
+        try
+        {
+            var ctx = Context.Get<ProcessChainNegotiationContext>("ProcessChain.Negotiation");
+            if (ctx == null)
+            {
+                return;
+            }
+            
+            // Only update for Manufacturing Sequence requests (not for ProcessChain)
+            var requestType = Context.Get<string>("ProcessChain.RequestType");
+            if (!string.Equals(requestType, "ManufacturingSequence", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+            
+            // Get the first offer for the completed requirement (this is the module that will execute it)
+            var firstOffer = completedRequirement.CapabilityOffers.FirstOrDefault();
+            if (firstOffer == null)
+            {
+                // Check in sequences
+                firstOffer = completedRequirement.OfferedCapabilitySequences
+                    .SelectMany(s => s.GetCapabilities())
+                    .FirstOrDefault();
+            }
+            
+            if (firstOffer == null)
+            {
+                return;
+            }
+            
+            // Extract AssetLocation from the offer (if present)
+            var offerAssetLocation = ExtractAssetLocationFromOffer(firstOffer);
+            if (offerAssetLocation != null)
+            {
+                // Update the AssetLocation in the context for subsequent capability requests
+                ctx.AssetLocation = offerAssetLocation;
+                Logger.LogInformation(
+                    "CollectCapabilityOffer: updated AssetLocation for next requirement to module {ModuleId}",
+                    ExtractModuleIdFromAssetLocation(offerAssetLocation) ?? "unknown");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "CollectCapabilityOffer: failed to update AssetLocation for next requirement");
+        }
+    }
+    
+    private SubmodelElementCollection? ExtractAssetLocationFromOffer(OfferedCapability offer)
+    {
+        if (offer == null)
+        {
+            return null;
+        }
+        
+        // OfferedCapability inherits from SubmodelElementCollection
+        // Check if there's an AssetLocation nested in its Values
+        try
+        {
+            if (offer.Values != null)
+            {
+                foreach (var element in offer.Values)
+                {
+                    if (element is SubmodelElementCollection smc 
+                        && string.Equals(smc.IdShort, "AssetLocation", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return smc;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Ignore extraction errors
+        }
+        
+        return null;
+    }
+    
+    private string? ExtractModuleIdFromAssetLocation(SubmodelElementCollection? assetLocation)
+    {
+        if (assetLocation?.Values == null)
+        {
+            return null;
+        }
+        
+        // Try to extract module ID from AssetLocation (typically stored in a Property)
+        foreach (var element in assetLocation.Values)
+        {
+            if (element is Property prop)
+            {
+                var idShort = prop.IdShort;
+                if (string.Equals(idShort, "ModuleId", StringComparison.OrdinalIgnoreCase) 
+                    || string.Equals(idShort, "Location", StringComparison.OrdinalIgnoreCase))
+                {
+                    return (prop as IProperty)?.GetText();
+                }
+            }
+        }
+        
+        return null;
     }
 
     private void DrainInbox(MessagingClient client, string conversationId)

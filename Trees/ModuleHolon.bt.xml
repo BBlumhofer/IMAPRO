@@ -39,9 +39,11 @@
         <Repeat name="OfferLoop" num_cycles="-1">
           <Fallback name="OfferOrIdle">
             <Sequence name="HandleOffer">
-              <ForwardCapabilityRequests name="ForwardOffer" TargetTopicTemplate="/{Namespace}/{ModuleId}/Planning/OfferedCapability/Request" />
-              <WaitForInternalResponse name="AwaitOfferResp" TimeoutSeconds="10" />
-              <ReplyToDispatcher name="ReplyOffer" ResponseTopicTemplate="/{Namespace}/Planning/OfferedCapability/Response" />
+                  <ForwardCapabilityRequests name="ForwardOffer" TargetTopicTemplate="/{Namespace}/{ModuleId}/OfferedCapability/Request" />
+                  <!-- Call ReplyToDispatcher immediately; it will check for an existing internal response and
+                    wait up to TimeoutSeconds for a late response. This avoids the hard 10s wait when a
+                    response already arrived. -->
+                  <ReplyToDispatcher name="ReplyOffer" ResponseTopicTemplate="/{Namespace}/Planning/OfferedCapability/Response" TimeoutSeconds="{config.ModuleHolon.OfferReplyTimeoutSeconds}" />
               <Wait name="OfferIdle" DelayMs="150" />
             </Sequence>
             <Wait name="OfferBackoff" DelayMs="200" />
@@ -146,6 +148,7 @@
     </Action>
     <Action ID="ReplyToDispatcher">
       <input_port name="ResponseTopicTemplate" />
+      <input_port name="TimeoutSeconds" default="10" />
     </Action>
     <Action ID="Wait">
       <input_port name="DelayMs" default="1000" />

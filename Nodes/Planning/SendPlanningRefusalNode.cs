@@ -73,7 +73,8 @@ public class SendPlanningRefusalNode : BTNode
         }
         if (string.IsNullOrWhiteSpace(conversationId))
         {
-            conversationId = System.Guid.NewGuid().ToString();
+            Logger.LogError("SendPlanningRefusal: ConversationId missing - cannot send refusal without conversation context");
+            return NodeStatus.Failure;
         }
 
         var receiverRole = request?.RequesterRole;
@@ -93,6 +94,8 @@ public class SendPlanningRefusalNode : BTNode
         // Use the same response topic as proposals so refusals and proposals arrive on a common channel
         var topic = $"/{ns}/{resolvedReceiver}/OfferedCapability/Response";
 
+        Logger.LogDebug($"Sending Planning Refusal from {senderId} to Topic {topic} for convId: {conversationId}");
+
         var refusal = new PlanningRefusalMessage(
             senderId ?? "PlanningAgent",
             senderRole ?? "PlanningAgent",
@@ -107,10 +110,6 @@ public class SendPlanningRefusalNode : BTNode
         // Mark conversation as refused to prevent duplicates
         Context.Set(alreadyRefusedKey, true);
         Context.Set("LastRefusalConversationId", conversationId);
-        
-        // Clear the current message so it won't be reprocessed
-        Context.Set("LastReceivedMessage", (I40Sharp.Messaging.Models.I40Message?)null);
-        Context.Set("CurrentMessage", (I40Sharp.Messaging.Models.I40Message?)null);
         
         Logger.LogInformation(
             "SendPlanningRefusal: published refusal to {Receiver} on {Topic} (conv={ConversationId}, reason={Reason})",

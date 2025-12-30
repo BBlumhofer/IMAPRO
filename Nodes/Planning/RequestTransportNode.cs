@@ -85,9 +85,7 @@ public class RequestTransportNode : BTNode
         for (var index = 0; index < orderedRequirements.Count; index++)
         {
             var requirement = orderedRequirements[index];
-            var target = string.IsNullOrWhiteSpace(requirement.Target)
-                ? (Context.Get<string>("TransportTarget") ?? requestContext.Capability)
-                : requirement.Target;
+            var target = this.Context.AgentId;
 
             if (string.IsNullOrWhiteSpace(target))
             {
@@ -180,17 +178,23 @@ public class RequestTransportNode : BTNode
         element.InstanceIdentifier.Value = new PropertyValue<string>(instanceIdentifier);
         element.OfferedCapabilityIdentifier.Value = new PropertyValue<string>($"{Context.AgentId}:{instanceIdentifier}");
         element.TransportGoalStation.Value = new PropertyValue<string>(target ?? string.Empty);
-        // If the request contains an AssetLocation submodel, use its Parent (previous machine) as TransportStartStation
+        // If the request contains an AssetLocation submodel, materialize it and use its Parent/Position
         try
         {
             if (request?.AssetLocation != null)
             {
-                var parentProp = request.AssetLocation.Values?.OfType<Property>()
-                    .FirstOrDefault(p => string.Equals(p.IdShort, "Parent", StringComparison.OrdinalIgnoreCase));
-                var parentVal = parentProp?.GetText();
-                if (!string.IsNullOrWhiteSpace(parentVal))
+                try
                 {
-                    element.TransportStartStation.Value = new PropertyValue<string>(parentVal!);
+                    var typed = AssetLocation.FromCollection(request.AssetLocation);
+                    var parentText = typed.Parent.GetText();
+                    if (!string.IsNullOrWhiteSpace(parentText))
+                    {
+                        element.TransportStartStation.Value = new PropertyValue<string>(parentText!);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogDebug(ex, "RequestTransport: failed to materialize AssetLocation");
                 }
             }
         }

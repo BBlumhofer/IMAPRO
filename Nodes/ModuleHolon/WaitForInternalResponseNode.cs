@@ -34,7 +34,48 @@ public class WaitForInternalResponseNode : BTNode
         }
 
         var queue = new ConcurrentQueue<I40Message>();
-        client.OnConversation(conv, m => queue.Enqueue(m));
+        
+        // Check inbox for messages that already arrived (race condition fix)
+        var existingMessages = client.DequeueMatchingAll((msg, topic) =>
+        {
+            var convId = msg.Frame?.ConversationId;
+            if (string.IsNullOrWhiteSpace(convId) || !string.Equals(convId, conv, StringComparison.OrdinalIgnoreCase)) return false;
+            var t = msg.Frame?.Type ?? string.Empty;
+            var baseType = t.Split('/')[0].ToLowerInvariant();
+            // Only consider proposals/refusals as valid internal responses; ignore stray CfP echoes
+            return baseType.StartsWith("propos") || baseType.StartsWith("refus");
+        });
+        
+        if (existingMessages.Count > 0)
+        {
+            Logger.LogInformation("WaitForInternalResponse: found {Count} messages already in inbox for ConversationId={ConvId}",
+                existingMessages.Count, conv);
+            foreach (var (msg, _) in existingMessages)
+            {
+                queue.Enqueue(msg);
+            }
+        }
+        
+        client.OnConversation(conv, m =>
+        {
+            try
+            {
+                var t = m.Frame?.Type ?? string.Empty;
+                var baseType = t.Split('/')[0].ToLowerInvariant();
+                if (baseType.StartsWith("propos") || baseType.StartsWith("refus"))
+                {
+                    queue.Enqueue(m);
+                }
+                else
+                {
+                    Logger.LogDebug("WaitForInternalResponse: ignored internal message type={Type} for conv {Conv}", t, conv);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "WaitForInternalResponse: error in OnConversation callback");
+            }
+        });
 
         var start = DateTime.UtcNow;
         while ((DateTime.UtcNow - start).TotalSeconds < TimeoutSeconds)

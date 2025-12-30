@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using ActionModel = AasSharpClient.Models.Action;
 using RangeElement = BaSyx.Models.AdminShell.Range;
 using AasSubmodelElementFactory = AasSharpClient.Models.SubmodelElementFactory;
+using AasSharpClient.Models.Messages;
 
 namespace MAS_BT.Nodes.Planning.ProcessChain;
 
@@ -131,7 +132,11 @@ public class PlanCapabilityOfferNode : BTNode
         if (resourceContainer != null)
         {
             CopyPreConstraintsToPreconditions(action, resourceContainer);
-            CopyPostConstraintsToPostconditions(action, resourceContainer);
+            // Only copy postconstraints from resourceContainer if requestContainer did not provide them
+            if (requestContainer == null)
+            {
+                CopyPostConstraintsToPostconditions(action, resourceContainer);
+            }
             if (!TryLinkSkillReference(action, resourceContainer))
             {
                 Logger.LogWarning("PlanCapabilityOffer: Local capability container {Container} lacks a RealizedBy relation.", resourceContainer.IdShort ?? resourceContainer.GetCapabilityName());
@@ -148,45 +153,15 @@ public class PlanCapabilityOfferNode : BTNode
         offeredCapability.AddAction(action);
 
         plan.OfferedCapability = offeredCapability;
-        var transportSequence = Context.Get<List<TransportSequenceItem>>("Planning.TransportSequence");
+        var transportSequence = Context.Get<CapabilitySequence>("Planning.TransportCapabilitiesSequence");
+        Logger.LogDebug("PlanCapabilityOffer: transportSequence present={HasSequence}", transportSequence != null && transportSequence.Count > 0);
         if (transportSequence != null && transportSequence.Count > 0)
         {
-            foreach (var entry in transportSequence)
-            {
-                if (entry == null)
-                {
-                    continue;
-                }
-
-                var transportOffer = entry.Capability;
-                if (transportOffer == null)
-                {
-                    continue;
-                }
-
-                EnsureOfferHasActionInputParameters(transportOffer, fallbackActionTitle: "Transport");
-
-                transportOffer.SetSequencePlacement(ConvertPlacement(entry.Placement));
-                plan.SupplementalCapabilities.Add(transportOffer);
-            }
+            Logger.LogInformation("PlanCapabilityOffer: applying transport sequence with {Count} entries", transportSequence.Count);
+            // Append the materialized capabilities using reusable extension from AAS-Sharp-Client
+            plan.SupplementalCapabilities.InsertRangeAfter(transportSequence.Capabilities);
         }
-        else
-        {
-            var supplementalOffers = Context.Get<List<OfferedCapability>>("Planning.TransportOffers");
-            if (supplementalOffers != null && supplementalOffers.Count > 0)
-            {
-                foreach (var transportOffer in supplementalOffers)
-                {
-                    if (transportOffer == null)
-                    {
-                        continue;
-                    }
-
-                    transportOffer.SetSequencePlacement("pre");
-                    plan.SupplementalCapabilities.Add(transportOffer);
-                }
-            }
-        }
+       
         Context.Set("Planning.TransportSequence", null);
         Context.Set("Planning.TransportOffers", null);
 
@@ -482,9 +457,51 @@ public class PlanCapabilityOfferNode : BTNode
             var conditionValue = CreateConditionValueEntry(constraint, ++nextIndex);
             if (conditionValue != null)
             {
-                postconditions.Add(conditionValue);
+                // avoid duplicate ConditionValue entries (same properties/values)
+                if (!ConditionValueExists(postconditions, conditionValue))
+                {
+                    postconditions.Add(conditionValue);
+                }
+                else
+                {
+                    // if duplicate, decrement index to keep numbering contiguous
+                    nextIndex--;
+                }
             }
         }
+    }
+
+    private static bool ConditionValueExists(SubmodelElementCollection postconditions, SubmodelElementCollection candidate)
+    {
+        if (postconditions?.Values == null) return false;
+
+        foreach (var existing in postconditions.Values.OfType<SubmodelElementCollection>())
+        {
+            if (!existing.IdShort?.StartsWith("ConditionValue_") == true) continue;
+
+            // compare number of child properties
+            var existingProps = existing.Values?.OfType<Property>()?.ToList() ?? new System.Collections.Generic.List<Property>();
+            var candidateProps = candidate.Values?.OfType<Property>()?.ToList() ?? new System.Collections.Generic.List<Property>();
+            if (existingProps.Count != candidateProps.Count) continue;
+
+            var allMatch = true;
+            for (int i = 0; i < existingProps.Count; i++)
+            {
+                var e = existingProps[i];
+                var c = candidateProps[i];
+                var eVal = e.Value?.Value?.ToString() ?? string.Empty;
+                var cVal = c.Value?.Value?.ToString() ?? string.Empty;
+                if (!string.Equals(e.IdShort, c.IdShort, System.StringComparison.OrdinalIgnoreCase) || !string.Equals(eVal, cVal, System.StringComparison.Ordinal))
+                {
+                    allMatch = false;
+                    break;
+                }
+            }
+
+            if (allMatch) return true;
+        }
+
+        return false;
     }
 
     private static int GetNextConditionValueIndex(SubmodelElementCollection preconditions)
@@ -608,6 +625,8 @@ public class PlanCapabilityOfferNode : BTNode
 
         return string.IsNullOrWhiteSpace(fallback) ? null : fallback;
     }
+
+    // NOTE: use extension methods in AasSharpClient.Models.ProcessChain.OfferedCapabilityListExtensions
 
     private CapabilityContainer? ResolveLocalCapabilityContainer(string capabilityName)
     {

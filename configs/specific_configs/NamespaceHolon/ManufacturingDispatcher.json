@@ -49,7 +49,8 @@
     "ProcessChainBackoffDelayMs": 200,
     "ManufacturingIdleDelayMs": 300,
     "ManufacturingBackoffDelayMs": 300,
-    "RegistrationIdleDelayMs": 10000
-    ,"SequentialCapabilityDispatch": false
+    "RegistrationIdleDelayMs": 10000,
+    "SequentialCapabilityDispatch": true,
+    "SequentialRequirementTimeoutSeconds": 60
   }
 }

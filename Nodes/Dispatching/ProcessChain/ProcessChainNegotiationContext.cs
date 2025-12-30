@@ -20,7 +20,7 @@ public class ProcessChainNegotiationContext
     public SubmodelElementCollection? AssetLocation { get; set; }
     public CapabilityRequirementCollection Requirements { get; } = new CapabilityRequirementCollection();
 
-    public bool HasCompleteProcessChain => Requirements.All(r => r.CapabilityOffers.Count > 0 || r.OfferedCapabilitySequences.Count > 0);
+    public bool HasCompleteProcessChain => Requirements.Count > 0 && Requirements.All(r => r.CapabilityOffers.Count > 0 || r.OfferedCapabilitySequences.Count > 0);
 }
 
 public class CapabilityRequirement

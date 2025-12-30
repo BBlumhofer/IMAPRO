@@ -71,6 +71,14 @@ namespace MAS_BT.Nodes.Common
                     return NodeStatus.Failure;
                 }
                 topics = BuildPlanningHolonTopics(ns, parentModuleId);
+                // Subscribe and register a flag so other nodes (e.g. forwarder) can wait until planning topics are active
+                var planningResult = await SubscribeGenericTopics(client, topics).ConfigureAwait(false);
+                if (planningResult == NodeStatus.Success)
+                {
+                    Context.Set($"PlanningTopicsRegistered_{parentModuleId}", true);
+                    Logger.LogInformation("SubscribeAgentTopics: Planning topics registered for module {Module}", parentModuleId);
+                }
+                return planningResult;
             }
             else if (role.Contains("Execution", StringComparison.OrdinalIgnoreCase))
             {
@@ -141,15 +149,12 @@ namespace MAS_BT.Nodes.Common
 
         private HashSet<string> BuildPlanningHolonTopics(string ns, string parentModuleId)
         {
+            // Restrict Planning holon subscriptions to the parent module's OfferedCapability topics only.
+            // This avoids accidental processing of unrelated planning or transport topics.
             return new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                // ONLY internal topics from parent ModuleHolon
-                $"/{ns}/{parentModuleId}/Planning/OfferedCapability/Request",
-                $"/{ns}/{parentModuleId}/Planning/ScheduleAction",
-                $"/{ns}/{parentModuleId}/Planning/TransportRequest",
-
-                // Direct responses from TransportManager
-                $"/{ns}/TransportPlan/Response"
+                $"/{ns}/{parentModuleId}/OfferedCapability/Request",
+                $"/{ns}/{parentModuleId}/OfferedCapability/Response"
             };
         }
 

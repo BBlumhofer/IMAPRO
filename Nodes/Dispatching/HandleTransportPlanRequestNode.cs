@@ -106,8 +106,31 @@ namespace MAS_BT.Nodes.Dispatching
                     }
 
                     OfferedCapability transportOffer;
-                    var responseElement = BuildResponseElement(parsedRequest, out transportOffer);
+                    var responseElement = BuildResponseElement(parsedRequest,requesterId, out transportOffer);
                 EnsureTransportStartStation(responseElement, incomingMessage);
+                    // Ensure each transport Action contains input parameters 'start' and 'ziel'
+                    try
+                    {
+                        var startStation = responseElement.TransportStartStationText ?? string.Empty;
+                        var goalStation = responseElement.TransportGoalStationText ?? string.Empty;
+                        foreach (var cap in responseElement.CapabilitiesSequence.OfferedCapabilities)
+                        {
+                            try
+                            {
+                                foreach (var act in cap.Actions.OfType<ActionModel>())
+                                {
+                                    try
+                                    {
+                                        act.InputParameters.SetParameter("start", startStation ?? string.Empty);
+                                        act.InputParameters.SetParameter("ziel", requesterId ?? string.Empty);
+                                    }
+                                    catch { }
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+                    catch { }
                 // reuse or produce distinct names to avoid shadowing earlier locals
                 var respSenderId = string.IsNullOrWhiteSpace(Context.AgentId) ? "DispatchingAgent" : Context.AgentId;
                 var respSenderRole = string.IsNullOrWhiteSpace(Context.AgentRole) ? "DispatchingAgent" : Context.AgentRole;
@@ -116,7 +139,7 @@ namespace MAS_BT.Nodes.Dispatching
                 var responseMsg = new AasSharpClient.Models.Messages.TransportPlanResponseMessage(
                     respSenderId,
                     respSenderRole,
-                    requesterId,
+                    requesterId ?? "Unknown",
                     respReceiverRole,
                     conversationId,
                     responseElement);
@@ -137,7 +160,7 @@ namespace MAS_BT.Nodes.Dispatching
             }
         }
 
-        private TransportRequestMessage BuildResponseElement(I40Message incoming, out OfferedCapability transportOffer)
+        private TransportRequestMessage BuildResponseElement(I40Message incoming, string requesterId,out OfferedCapability transportOffer)
         {
             // Try to find an existing SubmodelElementCollection in the incoming message to construct the request from
             SubmodelElementCollection? incomingCollection = null;
@@ -190,7 +213,7 @@ namespace MAS_BT.Nodes.Dispatching
             return req;
         }
 
-        private TransportRequestMessage BuildResponseElement(TransportRequestMessage incomingRequest, out OfferedCapability transportOffer)
+        private TransportRequestMessage BuildResponseElement(TransportRequestMessage incomingRequest, string requesterId, out OfferedCapability transportOffer)
         {
             var req = incomingRequest ?? new TransportRequestMessage("TransportRequest");
 
@@ -246,6 +269,8 @@ namespace MAS_BT.Nodes.Dispatching
             // Therefore use Key='ProductID' (etc.) and store the identifier in the value.
             var identifierKey = reqKey(identifierType);
             action.InputParameters.SetParameter(identifierKey, identifierValue);
+            // Also set the transport target (ziel) for convenience
+            try { action.InputParameters.SetParameter("ziel", goal ?? string.Empty); } catch { }
             offer.AddAction(action);
 
             return offer;
@@ -338,6 +363,12 @@ namespace MAS_BT.Nodes.Dispatching
             }
 
             var sequence = GetManufacturingSequenceForProduct(productId);
+            if (sequence == null)
+            {
+                Logger.LogWarning("HandleTransportPlanRequest: no manufacturing sequence available for product {ProductId}", productId);
+                return;
+            }
+
             var machineName = FindLatestStorageMachine(sequence);
             if (string.IsNullOrWhiteSpace(machineName))
             {
@@ -359,8 +390,10 @@ namespace MAS_BT.Nodes.Dispatching
             return incomingMessage?.Frame?.ConversationId;
         }
 
-        private ManufacturingSequence GetManufacturingSequenceForProduct(string productId)
+        private ManufacturingSequence? GetManufacturingSequenceForProduct(string productId)
         {
+            if (string.IsNullOrWhiteSpace(productId)) return null;
+
             Dictionary<string, ManufacturingSequence>? index = null;
             try
             {
@@ -371,12 +404,47 @@ namespace MAS_BT.Nodes.Dispatching
                 // Key not present yet.
             }
 
-            if (index != null && index.TryGetValue(productId, out var sequence) && sequence != null)
+            if (index != null)
             {
-                return sequence;
+                // direct lookup
+                if (index.TryGetValue(productId, out var sequence) && sequence != null)
+                {
+                    return sequence;
+                }
+
+                // heuristic: try trimming trailing underscores or common suffixes
+                var normalized = productId.TrimEnd('_');
+                if (!string.Equals(normalized, productId, StringComparison.Ordinal) && index.TryGetValue(normalized, out sequence) && sequence != null)
+                {
+                    return sequence;
+                }
+
+                // heuristic: try last path segment
+                try
+                {
+                    var last = productId.Split(new[] {'/'}, StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+                    if (!string.IsNullOrWhiteSpace(last))
+                    {
+                        if (index.TryGetValue(last, out sequence) && sequence != null) return sequence;
+
+                        // also try variations
+                        var lastNorm = last.TrimEnd('_');
+                        if (index.TryGetValue(lastNorm, out sequence) && sequence != null) return sequence;
+                    }
+                }
+                catch { }
+
+                // fallback: try contains match
+                foreach (var kv in index)
+                {
+                    if (kv.Key != null && (kv.Key.IndexOf(productId, StringComparison.OrdinalIgnoreCase) >= 0 || productId.IndexOf(kv.Key, StringComparison.OrdinalIgnoreCase) >= 0))
+                    {
+                        return kv.Value;
+                    }
+                }
             }
 
-            throw new NotImplementedException($"Transport planning for product '{productId}' is not implemented.");
+            return null;
         }
 
         private static string? FindLatestStorageMachine(ManufacturingSequence sequence)

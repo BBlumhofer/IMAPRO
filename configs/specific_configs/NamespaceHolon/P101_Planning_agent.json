@@ -4,7 +4,7 @@
     "ModuleId": "P101",
     "ModuleName":"DrillingStation",
     "Role": "PlanningHolon",
-    "LogLevel": "Information",
+    "LogLevel": "Debug",
     "InitializationTree": "Trees/PlanningAgent.bt.xml",
     "RegistrationIntervalMs": 1000
   },

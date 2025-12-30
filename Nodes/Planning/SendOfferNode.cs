@@ -33,9 +33,9 @@ public class SendOfferNode : BTNode
         }
 
         var conv = Context.Get<string>("ConversationId") ?? Guid.NewGuid().ToString();
-        var builder = new I40MessageBuilder()
+            var builder = new I40MessageBuilder()
             .From("PlanningAgent", "PlanningAgent")
-            .To(ReceiverId, "ProductAgent")
+            .To(ReceiverId, "Dispatching")
             .WithType(I40MessageTypes.PROPOSAL)
             .WithConversationId(conv);
 

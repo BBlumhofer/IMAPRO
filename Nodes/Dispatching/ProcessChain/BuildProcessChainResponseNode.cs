@@ -28,21 +28,11 @@ public class BuildProcessChainResponseNode : BTNode
             return Task.FromResult(NodeStatus.Failure);
         }
         Logger.LogInformation("Valid Offers received start building ProcessChain Offer Response");
-        var requestType = Context.Get<string>("ProcessChain.RequestType");
-        var isManufacturing = string.Equals(requestType, "ManufacturingSequence", StringComparison.OrdinalIgnoreCase);
-
-        SubmodelElement resultElement = isManufacturing
-            ? BuildManufacturingSequenceModel(negotiation)
-            : BuildProcessChainModel(negotiation);
-
+        // Build ProcessChain response (non-manufacturing)
+        var resultElement = BuildProcessChainModel(negotiation);
         var success = negotiation.HasCompleteProcessChain;
         Context.Set("ProcessChain.Result", resultElement);
         Context.Set("ProcessChain.Success", success);
-        if (isManufacturing)
-        {
-            Context.Set("ManufacturingSequence.Result", resultElement);
-            Context.Set("ManufacturingSequence.Success", success);
-        }
 
         if (!success)
         {
@@ -66,8 +56,7 @@ public class BuildProcessChainResponseNode : BTNode
         }
 
         Logger.LogInformation(
-            "BuildProcessChainResponse: built {Mode} with {Count} requirements (success={Success})",
-            isManufacturing ? "ManufacturingSequence" : "ProcessChain",
+            "BuildProcessChainResponse: built ProcessChain with {Count} requirements (success={Success})",
             negotiation.Requirements.Count,
             success);
         return Task.FromResult(NodeStatus.Success);

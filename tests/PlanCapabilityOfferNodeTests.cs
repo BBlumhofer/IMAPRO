@@ -135,8 +135,8 @@ public class PlanCapabilityOfferNodeTests
         Assert.NotNull(offeredCapability);
 
         Assert.Equal(2, plan.SupplementalCapabilities.Count);
-        var before = plan.SupplementalCapabilities.Single(c => string.Equals(c.InstanceIdentifier.GetText(), "transport_before", StringComparison.OrdinalIgnoreCase));
-        var after = plan.SupplementalCapabilities.Single(c => string.Equals(c.InstanceIdentifier.GetText(), "transport_after", StringComparison.OrdinalIgnoreCase));
+        var before = plan.SupplementalCapabilities.Capabilities.Single(c => string.Equals(c.InstanceIdentifier.GetText(), "transport_before", StringComparison.OrdinalIgnoreCase));
+        var after = plan.SupplementalCapabilities.Capabilities.Single(c => string.Equals(c.InstanceIdentifier.GetText(), "transport_after", StringComparison.OrdinalIgnoreCase));
         Assert.Equal("pre", before.SequencePlacement.GetText());
         Assert.Equal("post", after.SequencePlacement.GetText());
 
