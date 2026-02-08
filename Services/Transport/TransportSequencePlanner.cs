@@ -32,11 +32,14 @@ public sealed class TransportSequencePlanner
             throw new ArgumentException("toModuleId missing", nameof(toModuleId));
         }
 
+        Console.WriteLine($"[DEBUG] TransportSequencePlanner.BuildPlanAsync from={fromModuleId} to={toModuleId}");
         var edges = await _graphQuery.GetShortestPathAsync(fromModuleId, toModuleId, cancellationToken)
             .ConfigureAwait(false);
+        Console.WriteLine($"[DEBUG] GraphQuery returned edges_count={(edges?.Count ?? 0)}");
 
         if (edges == null || edges.Count == 0)
         {
+            Console.WriteLine($"[DEBUG] No path found from '{fromModuleId}' to '{toModuleId}'.");
             throw new InvalidOperationException($"No path found from '{fromModuleId}' to '{toModuleId}'.");
         }
 
@@ -48,6 +51,7 @@ public sealed class TransportSequencePlanner
         }
 
         var total = legs.Sum(l => l.Cost);
+        Console.WriteLine($"[DEBUG] Built plan legs={legs.Count} totalCost={total}");
         return new TransportPlan(legs, total);
     }
 }

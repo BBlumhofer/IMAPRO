@@ -133,7 +133,7 @@ public class RegistrationIntegrationTests
     public async Task WaitForRegistration_AllowsSameAgentIdWhenRolesDiffer()
     {
         var ns = $"test{Guid.NewGuid():N}";
-        var moduleId = "P103";
+        var moduleId = "P102";
 
         await using var holonHandle = await CreateClientAsync($"{moduleId}_holon");
         await using var pubHandle = await CreateClientAsync($"{moduleId}_publisher");
@@ -161,7 +161,7 @@ public class RegistrationIntegrationTests
         var waitTask = wait.Execute();
         await Task.Delay(200);
 
-        // Two sub-holons publish with the SAME AgentId (P103) but different roles.
+        // Two sub-holons publish with the SAME AgentId (P102) but different roles.
         var planningMsg = new I40MessageBuilder()
             .From(moduleId, "PlanningHolon")
             .To(moduleId, "ModuleHolon")

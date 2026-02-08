@@ -1,0 +1,241 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="197aaa44-3d6a-42be-b896-c62d3132c0f9" name="@BeBlWorkstationUbuntu 2026-01-07 09:57:41" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-01-07T09:57:41.7409343+01:00" queuing="2026-01-07T09:57:41.7409343+01:00" start="2026-01-07T09:57:40.7537839+01:00" finish="2026-01-07T09:57:41.7504399+01:00" />
+  <TestSettings name="default" id="809c9245-5cb7-4eb7-851b-eb0dfcc3c8e2">
+    <Deployment runDeploymentRoot="_BeBlWorkstationUbuntu_2026-01-07_09_57_41" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="4ffe3959-5c5f-4a22-a40a-36b109ce2d75" testId="f5ac33ed-1366-2b37-17d4-0e00855a28c2" testName="MAS_BT.Tests.TransportManagerIntegrationTests.CollectTransportResponsesNode_ConsumesTransportPlanResponseOverRealMqtt" computerName="BeBlWorkstationUbuntu" duration="00:00:00.3718092" startTime="2026-01-07T09:57:41.2171679+01:00" endTime="2026-01-07T09:57:41.5890103+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4ffe3959-5c5f-4a22-a40a-36b109ce2d75">
+      <Output>
+        <StdOut>Neo4j config: Uri=neo4j://192.168.178.30:7687, User=neo4j, Database=neo4j
+Planned 1 leg(s) for MQTT round-trip</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="62c49e9c-047a-4480-897f-7028c503d75b" testId="b22706f8-ccff-4522-8548-831a1893415a" testName="MAS_BT.Tests.TransportSequencePlannerTests.BuildPlanAsync_ThrowsWhenNoPath" computerName="BeBlWorkstationUbuntu" duration="00:00:00.0016877" startTime="2026-01-07T09:57:41.1952062+01:00" endTime="2026-01-07T09:57:41.1952562+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="62c49e9c-047a-4480-897f-7028c503d75b">
+      <Output>
+        <StdOut>Graph edges: &lt;empty&gt;
+Expected failure: No path found from 'P300' to 'P999'.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="1d7c83e6-8e85-49e3-8ee6-ea22d0cb79ea" testId="91df596a-9c91-ac69-5c1b-1206cdca455b" testName="MAS_BT.Tests.TransportCapabilityPlannerTests.BuildSequence_WithPassiveTransport_SkipsTransportLeg" computerName="BeBlWorkstationUbuntu" duration="00:00:00.0004589" startTime="2026-01-07T09:57:41.1468955+01:00" endTime="2026-01-07T09:57:41.1469469+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1d7c83e6-8e85-49e3-8ee6-ea22d0cb79ea">
+      <Output>
+        <StdOut>Module path: P100 -&gt; P201 -&gt; P101
+Sequence legs (2): P100:DockRetrieveHandoverCapability, P101:DockStoreHandoverCapability</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="53817e57-4d9c-4fbc-87b9-4440aeacce3f" testId="2d93173c-3b1f-5de4-90a7-140c440d8268" testName="MAS_BT.Tests.HandleTransportPlanRequestNodeIntegrationTests.Execute_PublishesTransportPlanUsingNamespaceHolonConfig" computerName="BeBlWorkstationUbuntu" duration="00:00:00.0734870" startTime="2026-01-07T09:57:41.5892576+01:00" endTime="2026-01-07T09:57:41.6633863+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="53817e57-4d9c-4fbc-87b9-4440aeacce3f">
+      <Output>
+        <StdOut>Neo4j config: Uri=neo4j://192.168.178.30:7687, User=neo4j, Database=neo4j</StdOut>
+        <ErrorInfo>
+          <Message>Assert.Equal() Failure: Values differ
+Expected: Success
+Actual:   Failure</Message>
+          <StackTrace>   at MAS_BT.Tests.HandleTransportPlanRequestNodeIntegrationTests.Execute_PublishesTransportPlanUsingNamespaceHolonConfig() in /home/benjamin/AgentDevelopment/MAS-BT/tests/HandleTransportPlanRequestNodeIntegrationTests.cs:line 106
+   at MAS_BT.Tests.HandleTransportPlanRequestNodeIntegrationTests.Execute_PublishesTransportPlanUsingNamespaceHolonConfig() in /home/benjamin/AgentDevelopment/MAS-BT/tests/HandleTransportPlanRequestNodeIntegrationTests.cs:line 128
+   at MAS_BT.Tests.HandleTransportPlanRequestNodeIntegrationTests.Execute_PublishesTransportPlanUsingNamespaceHolonConfig() in /home/benjamin/AgentDevelopment/MAS-BT/tests/HandleTransportPlanRequestNodeIntegrationTests.cs:line 128
+   at MAS_BT.Tests.HandleTransportPlanRequestNodeIntegrationTests.Execute_PublishesTransportPlanUsingNamespaceHolonConfig() in /home/benjamin/AgentDevelopment/MAS-BT/tests/HandleTransportPlanRequestNodeIntegrationTests.cs:line 128
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="f17a607a-cab1-484f-b669-fcfd84a08112" testId="0cd9a92d-fc89-6770-1b89-4a4286d8d5d7" testName="MAS_BT.Tests.TransportSequencePlannerTests.BuildPlanAsync_ReturnsLegsWithCostFromDistance" computerName="BeBlWorkstationUbuntu" duration="00:00:00.0733061" startTime="2026-01-07T09:57:41.1043541+01:00" endTime="2026-01-07T09:57:41.1921289+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f17a607a-cab1-484f-b669-fcfd84a08112">
+      <Output>
+        <StdOut>Using Neo4j graph neo4j://192.168.178.30:7687 (db=neo4j) - expecting existing ASSET_DISTANCE edge P100-&gt;P101</StdOut>
+        <ErrorInfo>
+          <Message>Neo4j.Driver.AuthenticationException : The client is unauthorized due to authentication failure.</Message>
+          <StackTrace>   at Neo4j.Driver.Internal.Connector.PooledConnection.OnErrorAsync(Exception error)
+   at Neo4j.Driver.Internal.Connector.DelegatedConnection.InitAsync(SessionConfig sessionConfig, CancellationToken cancellationToken)
+   at Neo4j.Driver.Internal.ConnectionPool.CreateNewPooledConnectionAsync(SessionConfig sessionConfig, CancellationToken cancellationToken)
+   at Neo4j.Driver.Internal.ConnectionPool.CreateNewPooledConnectionAsync(SessionConfig sessionConfig, CancellationToken cancellationToken)
+   at Neo4j.Driver.Internal.ConnectionPool.CreateNewConnectionOrGetIdleAsync(SessionConfig sessionConfig, CancellationToken cancellationToken)
+   at Neo4j.Driver.Internal.ConnectionPool.AcquireAsync(AccessMode mode, String database, SessionConfig sessionConfig, CancellationToken cancellationToken)
+   at Neo4j.Driver.Internal.TaskExtensions.Timeout[T](Task`1 task, TimeSpan timeout, CancellationToken cancellationToken)
+   at Neo4j.Driver.Internal.ConnectionPool.AcquireOrTimeoutAsync(String database, SessionConfig sessionConfig, AccessMode mode, TimeSpan timeout)
+   at Neo4j.Driver.Internal.Logging.DriverLoggerUtil.TryExecuteAsync[T](ILogger logger, Func`1 func, String message)
+   at Neo4j.Driver.Internal.ConnectionPool.AcquireAsync(AccessMode mode, String database, SessionConfig sessionConfig, Bookmarks bookmarks, Boolean forceAuth)
+   at Neo4j.Driver.Internal.Routing.LoadBalancer.CreateClusterConnectionAsync(Uri uri, AccessMode mode, String database, SessionConfig sessionConfig, Bookmarks bookmarks, Boolean forceAuth)
+   at Neo4j.Driver.Internal.Routing.RoutingTableManager.UpdateRoutingTableAsync(IRoutingTable routingTable, AccessMode mode, String database, SessionConfig sessionConfig, Bookmarks bookmarks, ISet`1 triedUris)
+   at Neo4j.Driver.Internal.Routing.RoutingTableManager.UpdateRoutingTableAsync(AccessMode mode, String database, SessionConfig sessionConfig, Bookmarks bookmarks)
+   at Neo4j.Driver.Internal.Routing.RoutingTableManager.EnsureRoutingTableForModeAsync(AccessMode mode, String database, Boolean isCachedHomeDb, SessionConfig sessionConfig, Bookmarks bookmarks)
+   at Neo4j.Driver.Internal.Routing.LoadBalancer.AcquireConnectionAsync(AccessMode mode, String database, SessionConfig sessionConfig, Bookmarks bookmarks, Boolean forceAuth)
+   at Neo4j.Driver.Internal.Routing.LoadBalancer.AcquireAsync(AccessMode mode, String database, SessionConfig sessionConfig, Bookmarks bookmarks, Boolean forceAuth)
+   at Neo4j.Driver.Internal.AsyncSession.AcquireConnectionAndDbNameAsync(AccessMode mode, Boolean forceAuth)
+   at Neo4j.Driver.Internal.AsyncSession.&lt;&gt;c__DisplayClass42_0.&lt;&lt;RunAsync&gt;b__0&gt;d.MoveNext()
+--- End of stack trace from previous location ---
+   at Neo4j.Driver.Internal.Logging.DriverLoggerUtil.TryExecuteAsync[T](ILogger logger, Func`1 func, String message)
+   at Neo4j.Driver.Internal.AsyncSession.DiscardUnconsumedResultAsync()
+   at MAS_BT.Services.Transport.Neo4jTransportGraphQuery.GetShortestPathAsync(String fromModuleId, String toModuleId, CancellationToken cancellationToken) in /home/benjamin/AgentDevelopment/MAS-BT/Services/Transport/Neo4jTransportGraphQuery.cs:line 71
+   at MAS_BT.Services.Transport.TransportSequencePlanner.BuildPlanAsync(String fromModuleId, String toModuleId, CancellationToken cancellationToken) in /home/benjamin/AgentDevelopment/MAS-BT/Services/Transport/TransportSequencePlanner.cs:line 35
+   at MAS_BT.Tests.TransportSequencePlannerTests.BuildPlanAsync_ReturnsLegsWithCostFromDistance() in /home/benjamin/AgentDevelopment/MAS-BT/tests/TransportSequencePlannerTests.cs:line 42
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="140efc8c-0573-402c-9952-db40c9c4946f" testId="1d7d96c1-0c72-4221-218e-edfa29c968f0" testName="MAS_BT.Tests.TransportCapabilityPlannerTests.BuildSequence_ThrowsWhenInitiatorMissingPartnerConstraint" computerName="BeBlWorkstationUbuntu" duration="00:00:00.0009097" startTime="2026-01-07T09:57:41.1465169+01:00" endTime="2026-01-07T09:57:41.1465803+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="140efc8c-0573-402c-9952-db40c9c4946f">
+      <Output>
+        <StdOut>Expected failure: Capability 'DockStoreHandoverCapability' on 'P200' requires PartnerHasDockReceiveHandover.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="ca1b58f5-0e0e-47f8-93e3-3343b6ec2741" testId="4599dee9-987e-65dd-ba51-8c2655ee76a5" testName="MAS_BT.Tests.TransportCapabilityPlannerTests.BuildSequence_ThrowsWhenCapabilityMissing" computerName="BeBlWorkstationUbuntu" duration="00:00:00.0003107" startTime="2026-01-07T09:57:41.1470066+01:00" endTime="2026-01-07T09:57:41.1470409+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ca1b58f5-0e0e-47f8-93e3-3343b6ec2741">
+      <Output>
+        <StdOut>Expected failure: Missing capability 'DockRetrieveHandoverCapability' for module 'P200'.</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="b01ebdaf-71c0-48b9-b1d2-80d2acff5ae8" testId="1b47bb3f-4f16-1fdd-2e22-b1741a4809f4" testName="MAS_BT.Tests.TransportManagerIntegrationTests.Neo4j_CapabilityChainFromP100ToP102_HasExpectedRoles" computerName="BeBlWorkstationUbuntu" duration="00:00:00.1054958" startTime="2026-01-07T09:57:41.1050764+01:00" endTime="2026-01-07T09:57:41.2166808+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b01ebdaf-71c0-48b9-b1d2-80d2acff5ae8">
+      <Output>
+        <StdOut>Neo4j config: Uri=neo4j://192.168.178.30:7687, User=neo4j, Database=neo4j
+Shortest path: P100 -&gt; P102</StdOut>
+        <ErrorInfo>
+          <Message>Assert.Contains() Failure: Item not found in collection
+Collection: ["P100", "P102"]
+Not found:  "P200"</Message>
+          <StackTrace>   at MAS_BT.Tests.TransportManagerIntegrationTests.Neo4j_CapabilityChainFromP100ToP102_HasExpectedRoles() in /home/benjamin/AgentDevelopment/MAS-BT/tests/TransportManagerIntegrationTests.cs:line 50
+   at MAS_BT.Tests.TransportManagerIntegrationTests.Neo4j_CapabilityChainFromP100ToP102_HasExpectedRoles() in /home/benjamin/AgentDevelopment/MAS-BT/tests/TransportManagerIntegrationTests.cs:line 72
+   at MAS_BT.Tests.TransportManagerIntegrationTests.Neo4j_CapabilityChainFromP100ToP102_HasExpectedRoles() in /home/benjamin/AgentDevelopment/MAS-BT/tests/TransportManagerIntegrationTests.cs:line 72
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="cca7c441-f1d4-49c8-887b-1fd633edd6e0" testId="879c99c4-7375-69d8-ea1b-45ddfcca0284" testName="MAS_BT.Tests.TransportCapabilityPlannerTests.BuildSequence_WithTransportModule_AddsTransportLeg" computerName="BeBlWorkstationUbuntu" duration="00:00:00.0311503" startTime="2026-01-07T09:57:41.1051041+01:00" endTime="2026-01-07T09:57:41.1420218+01:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="cca7c441-f1d4-49c8-887b-1fd633edd6e0">
+      <Output>
+        <StdOut>Module path: P100 -&gt; P200 -&gt; P101
+Sequence legs (3): P200:DockStoreHandoverCapability, P200:Transport, P200:DockRetrieveHandoverCapability</StdOut>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="MAS_BT.Tests.TransportSequencePlannerTests.BuildPlanAsync_ReturnsLegsWithCostFromDistance" storage="/home/benjamin/agentdevelopment/mas-bt/bin/debug/net10.0/mas-bt.dll" id="0cd9a92d-fc89-6770-1b89-4a4286d8d5d7">
+      <Execution id="f17a607a-cab1-484f-b669-fcfd84a08112" />
+      <TestMethod codeBase="/home/benjamin/AgentDevelopment/MAS-BT/bin/Debug/net10.0/MAS-BT.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="MAS_BT.Tests.TransportSequencePlannerTests" name="BuildPlanAsync_ReturnsLegsWithCostFromDistance" />
+    </UnitTest>
+    <UnitTest name="MAS_BT.Tests.TransportManagerIntegrationTests.CollectTransportResponsesNode_ConsumesTransportPlanResponseOverRealMqtt" storage="/home/benjamin/agentdevelopment/mas-bt/bin/debug/net10.0/mas-bt.dll" id="f5ac33ed-1366-2b37-17d4-0e00855a28c2">
+      <Execution id="4ffe3959-5c5f-4a22-a40a-36b109ce2d75" />
+      <TestMethod codeBase="/home/benjamin/AgentDevelopment/MAS-BT/bin/Debug/net10.0/MAS-BT.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="MAS_BT.Tests.TransportManagerIntegrationTests" name="CollectTransportResponsesNode_ConsumesTransportPlanResponseOverRealMqtt" />
+    </UnitTest>
+    <UnitTest name="MAS_BT.Tests.TransportCapabilityPlannerTests.BuildSequence_ThrowsWhenCapabilityMissing" storage="/home/benjamin/agentdevelopment/mas-bt/bin/debug/net10.0/mas-bt.dll" id="4599dee9-987e-65dd-ba51-8c2655ee76a5">
+      <Execution id="ca1b58f5-0e0e-47f8-93e3-3343b6ec2741" />
+      <TestMethod codeBase="/home/benjamin/AgentDevelopment/MAS-BT/bin/Debug/net10.0/MAS-BT.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="MAS_BT.Tests.TransportCapabilityPlannerTests" name="BuildSequence_ThrowsWhenCapabilityMissing" />
+    </UnitTest>
+    <UnitTest name="MAS_BT.Tests.TransportSequencePlannerTests.BuildPlanAsync_ThrowsWhenNoPath" storage="/home/benjamin/agentdevelopment/mas-bt/bin/debug/net10.0/mas-bt.dll" id="b22706f8-ccff-4522-8548-831a1893415a">
+      <Execution id="62c49e9c-047a-4480-897f-7028c503d75b" />
+      <TestMethod codeBase="/home/benjamin/AgentDevelopment/MAS-BT/bin/Debug/net10.0/MAS-BT.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="MAS_BT.Tests.TransportSequencePlannerTests" name="BuildPlanAsync_ThrowsWhenNoPath" />
+    </UnitTest>
+    <UnitTest name="MAS_BT.Tests.TransportCapabilityPlannerTests.BuildSequence_ThrowsWhenInitiatorMissingPartnerConstraint" storage="/home/benjamin/agentdevelopment/mas-bt/bin/debug/net10.0/mas-bt.dll" id="1d7d96c1-0c72-4221-218e-edfa29c968f0">
+      <Execution id="140efc8c-0573-402c-9952-db40c9c4946f" />
+      <TestMethod codeBase="/home/benjamin/AgentDevelopment/MAS-BT/bin/Debug/net10.0/MAS-BT.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="MAS_BT.Tests.TransportCapabilityPlannerTests" name="BuildSequence_ThrowsWhenInitiatorMissingPartnerConstraint" />
+    </UnitTest>
+    <UnitTest name="MAS_BT.Tests.TransportManagerIntegrationTests.Neo4j_CapabilityChainFromP100ToP102_HasExpectedRoles" storage="/home/benjamin/agentdevelopment/mas-bt/bin/debug/net10.0/mas-bt.dll" id="1b47bb3f-4f16-1fdd-2e22-b1741a4809f4">
+      <Execution id="b01ebdaf-71c0-48b9-b1d2-80d2acff5ae8" />
+      <TestMethod codeBase="/home/benjamin/AgentDevelopment/MAS-BT/bin/Debug/net10.0/MAS-BT.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="MAS_BT.Tests.TransportManagerIntegrationTests" name="Neo4j_CapabilityChainFromP100ToP102_HasExpectedRoles" />
+    </UnitTest>
+    <UnitTest name="MAS_BT.Tests.TransportCapabilityPlannerTests.BuildSequence_WithPassiveTransport_SkipsTransportLeg" storage="/home/benjamin/agentdevelopment/mas-bt/bin/debug/net10.0/mas-bt.dll" id="91df596a-9c91-ac69-5c1b-1206cdca455b">
+      <Execution id="1d7c83e6-8e85-49e3-8ee6-ea22d0cb79ea" />
+      <TestMethod codeBase="/home/benjamin/AgentDevelopment/MAS-BT/bin/Debug/net10.0/MAS-BT.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="MAS_BT.Tests.TransportCapabilityPlannerTests" name="BuildSequence_WithPassiveTransport_SkipsTransportLeg" />
+    </UnitTest>
+    <UnitTest name="MAS_BT.Tests.TransportCapabilityPlannerTests.BuildSequence_WithTransportModule_AddsTransportLeg" storage="/home/benjamin/agentdevelopment/mas-bt/bin/debug/net10.0/mas-bt.dll" id="879c99c4-7375-69d8-ea1b-45ddfcca0284">
+      <Execution id="cca7c441-f1d4-49c8-887b-1fd633edd6e0" />
+      <TestMethod codeBase="/home/benjamin/AgentDevelopment/MAS-BT/bin/Debug/net10.0/MAS-BT.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="MAS_BT.Tests.TransportCapabilityPlannerTests" name="BuildSequence_WithTransportModule_AddsTransportLeg" />
+    </UnitTest>
+    <UnitTest name="MAS_BT.Tests.HandleTransportPlanRequestNodeIntegrationTests.Execute_PublishesTransportPlanUsingNamespaceHolonConfig" storage="/home/benjamin/agentdevelopment/mas-bt/bin/debug/net10.0/mas-bt.dll" id="2d93173c-3b1f-5de4-90a7-140c440d8268">
+      <Execution id="53817e57-4d9c-4fbc-87b9-4440aeacce3f" />
+      <TestMethod codeBase="/home/benjamin/AgentDevelopment/MAS-BT/bin/Debug/net10.0/MAS-BT.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="MAS_BT.Tests.HandleTransportPlanRequestNodeIntegrationTests" name="Execute_PublishesTransportPlanUsingNamespaceHolonConfig" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="f5ac33ed-1366-2b37-17d4-0e00855a28c2" executionId="4ffe3959-5c5f-4a22-a40a-36b109ce2d75" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b22706f8-ccff-4522-8548-831a1893415a" executionId="62c49e9c-047a-4480-897f-7028c503d75b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="91df596a-9c91-ac69-5c1b-1206cdca455b" executionId="1d7c83e6-8e85-49e3-8ee6-ea22d0cb79ea" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="2d93173c-3b1f-5de4-90a7-140c440d8268" executionId="53817e57-4d9c-4fbc-87b9-4440aeacce3f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="0cd9a92d-fc89-6770-1b89-4a4286d8d5d7" executionId="f17a607a-cab1-484f-b669-fcfd84a08112" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1d7d96c1-0c72-4221-218e-edfa29c968f0" executionId="140efc8c-0573-402c-9952-db40c9c4946f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4599dee9-987e-65dd-ba51-8c2655ee76a5" executionId="ca1b58f5-0e0e-47f8-93e3-3343b6ec2741" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1b47bb3f-4f16-1fdd-2e22-b1741a4809f4" executionId="b01ebdaf-71c0-48b9-b1d2-80d2acff5ae8" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="879c99c4-7375-69d8-ea1b-45ddfcca0284" executionId="cca7c441-f1d4-49c8-887b-1fd633edd6e0" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="9" executed="9" passed="6" failed="3" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.0.0+e341b939fe (64-bit .NET 10.0.0)
+[xUnit.net 00:00:00.05]   Discovering: MAS-BT
+[xUnit.net 00:00:00.08]   Discovered:  MAS-BT
+[xUnit.net 00:00:00.09]   Starting:    MAS-BT
+Module path: P100 -&gt; P200 -&gt; P101
+Using Neo4j graph neo4j://192.168.178.30:7687 (db=neo4j) - expecting existing ASSET_DISTANCE edge P100-&gt;P101
+Sequence legs (3): P200:DockStoreHandoverCapability, P200:Transport, P200:DockRetrieveHandoverCapability
+Expected failure: Capability 'DockStoreHandoverCapability' on 'P200' requires PartnerHasDockReceiveHandover.
+Module path: P100 -&gt; P201 -&gt; P101
+Sequence legs (2): P100:DockRetrieveHandoverCapability, P101:DockStoreHandoverCapability
+Expected failure: Missing capability 'DockRetrieveHandoverCapability' for module 'P200'.
+Graph edges: &lt;empty&gt;
+[xUnit.net 00:00:00.20]       Neo4j.Driver.AuthenticationException : The client is unauthorized due to authentication failure.
+[xUnit.net 00:00:00.20]       Stack Trace:
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.Connector.PooledConnection.OnErrorAsync(Exception error)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.Connector.DelegatedConnection.InitAsync(SessionConfig sessionConfig, CancellationToken cancellationToken)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.ConnectionPool.CreateNewPooledConnectionAsync(SessionConfig sessionConfig, CancellationToken cancellationToken)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.ConnectionPool.CreateNewPooledConnectionAsync(SessionConfig sessionConfig, CancellationToken cancellationToken)
+Expected failure: No path found from 'P300' to 'P999'.
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.ConnectionPool.CreateNewConnectionOrGetIdleAsync(SessionConfig sessionConfig, CancellationToken cancellationToken)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.ConnectionPool.AcquireAsync(AccessMode mode, String database, SessionConfig sessionConfig, CancellationToken cancellationToken)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.TaskExtensions.Timeout[T](Task`1 task, TimeSpan timeout, CancellationToken cancellationToken)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.ConnectionPool.AcquireOrTimeoutAsync(String database, SessionConfig sessionConfig, AccessMode mode, TimeSpan timeout)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.Logging.DriverLoggerUtil.TryExecuteAsync[T](ILogger logger, Func`1 func, String message)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.ConnectionPool.AcquireAsync(AccessMode mode, String database, SessionConfig sessionConfig, Bookmarks bookmarks, Boolean forceAuth)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.Routing.LoadBalancer.CreateClusterConnectionAsync(Uri uri, AccessMode mode, String database, SessionConfig sessionConfig, Bookmarks bookmarks, Boolean forceAuth)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.Routing.RoutingTableManager.UpdateRoutingTableAsync(IRoutingTable routingTable, AccessMode mode, String database, SessionConfig sessionConfig, Bookmarks bookmarks, ISet`1 triedUris)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.Routing.RoutingTableManager.UpdateRoutingTableAsync(AccessMode mode, String database, SessionConfig sessionConfig, Bookmarks bookmarks)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.Routing.RoutingTableManager.EnsureRoutingTableForModeAsync(AccessMode mode, String database, Boolean isCachedHomeDb, SessionConfig sessionConfig, Bookmarks bookmarks)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.Routing.LoadBalancer.AcquireConnectionAsync(AccessMode mode, String database, SessionConfig sessionConfig, Bookmarks bookmarks, Boolean forceAuth)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.Routing.LoadBalancer.AcquireAsync(AccessMode mode, String database, SessionConfig sessionConfig, Bookmarks bookmarks, Boolean forceAuth)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.AsyncSession.AcquireConnectionAndDbNameAsync(AccessMode mode, Boolean forceAuth)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.AsyncSession.&lt;&gt;c__DisplayClass42_0.&lt;&lt;RunAsync&gt;b__0&gt;d.MoveNext()
+[xUnit.net 00:00:00.20]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.Logging.DriverLoggerUtil.TryExecuteAsync[T](ILogger logger, Func`1 func, String message)
+[xUnit.net 00:00:00.20]            at Neo4j.Driver.Internal.AsyncSession.DiscardUnconsumedResultAsync()
+[xUnit.net 00:00:00.20]         /home/benjamin/AgentDevelopment/MAS-BT/Services/Transport/Neo4jTransportGraphQuery.cs(71,0): at MAS_BT.Services.Transport.Neo4jTransportGraphQuery.GetShortestPathAsync(String fromModuleId, String toModuleId, CancellationToken cancellationToken)
+[xUnit.net 00:00:00.20]         /home/benjamin/AgentDevelopment/MAS-BT/Services/Transport/TransportSequencePlanner.cs(35,0): at MAS_BT.Services.Transport.TransportSequencePlanner.BuildPlanAsync(String fromModuleId, String toModuleId, CancellationToken cancellationToken)
+[xUnit.net 00:00:00.20]         /home/benjamin/AgentDevelopment/MAS-BT/tests/TransportSequencePlannerTests.cs(42,0): at MAS_BT.Tests.TransportSequencePlannerTests.BuildPlanAsync_ReturnsLegsWithCostFromDistance()
+[xUnit.net 00:00:00.20]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:00.20]       Output:
+[xUnit.net 00:00:00.20]         Using Neo4j graph neo4j://192.168.178.30:7687 (db=neo4j) - expecting existing ASSET_DISTANCE edge P100-&gt;P101
+[xUnit.net 00:00:00.22]       Assert.Contains() Failure: Item not found in collection
+[xUnit.net 00:00:00.22]       Collection: ["P100", "P102"]
+[xUnit.net 00:00:00.22]       Not found:  "P200"
+[xUnit.net 00:00:00.22]       Stack Trace:
+[xUnit.net 00:00:00.22]         /home/benjamin/AgentDevelopment/MAS-BT/tests/TransportManagerIntegrationTests.cs(50,0): at MAS_BT.Tests.TransportManagerIntegrationTests.Neo4j_CapabilityChainFromP100ToP102_HasExpectedRoles()
+[xUnit.net 00:00:00.22]         /home/benjamin/AgentDevelopment/MAS-BT/tests/TransportManagerIntegrationTests.cs(72,0): at MAS_BT.Tests.TransportManagerIntegrationTests.Neo4j_CapabilityChainFromP100ToP102_HasExpectedRoles()
+[xUnit.net 00:00:00.22]         /home/benjamin/AgentDevelopment/MAS-BT/tests/TransportManagerIntegrationTests.cs(72,0): at MAS_BT.Tests.TransportManagerIntegrationTests.Neo4j_CapabilityChainFromP100ToP102_HasExpectedRoles()
+[xUnit.net 00:00:00.22]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:00.22]       Output:
+[xUnit.net 00:00:00.22]         Neo4j config: Uri=neo4j://192.168.178.30:7687, User=neo4j, Database=neo4j
+[xUnit.net 00:00:00.22]         Shortest path: P100 -&gt; P102
+[xUnit.net 00:00:00.67]       Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:00.67]       Expected: Success
+[xUnit.net 00:00:00.67]       Actual:   Failure
+[xUnit.net 00:00:00.67]       Stack Trace:
+[xUnit.net 00:00:00.67]         /home/benjamin/AgentDevelopment/MAS-BT/tests/HandleTransportPlanRequestNodeIntegrationTests.cs(106,0): at MAS_BT.Tests.HandleTransportPlanRequestNodeIntegrationTests.Execute_PublishesTransportPlanUsingNamespaceHolonConfig()
+[xUnit.net 00:00:00.67]         /home/benjamin/AgentDevelopment/MAS-BT/tests/HandleTransportPlanRequestNodeIntegrationTests.cs(128,0): at MAS_BT.Tests.HandleTransportPlanRequestNodeIntegrationTests.Execute_PublishesTransportPlanUsingNamespaceHolonConfig()
+[xUnit.net 00:00:00.67]         /home/benjamin/AgentDevelopment/MAS-BT/tests/HandleTransportPlanRequestNodeIntegrationTests.cs(128,0): at MAS_BT.Tests.HandleTransportPlanRequestNodeIntegrationTests.Execute_PublishesTransportPlanUsingNamespaceHolonConfig()
+[xUnit.net 00:00:00.67]         /home/benjamin/AgentDevelopment/MAS-BT/tests/HandleTransportPlanRequestNodeIntegrationTests.cs(128,0): at MAS_BT.Tests.HandleTransportPlanRequestNodeIntegrationTests.Execute_PublishesTransportPlanUsingNamespaceHolonConfig()
+[xUnit.net 00:00:00.67]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:00.67]       Output:
+[xUnit.net 00:00:00.67]         Neo4j config: Uri=neo4j://192.168.178.30:7687, User=neo4j, Database=neo4j
+[xUnit.net 00:00:00.67]   Finished:    MAS-BT
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="BeBlWorkstationUbuntu" outcome="Error" timestamp="2026-01-07T09:57:41.1936189+01:00">
+        <Text>[xUnit.net 00:00:00.19]     MAS_BT.Tests.TransportSequencePlannerTests.BuildPlanAsync_ReturnsLegsWithCostFromDistance [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="BeBlWorkstationUbuntu" outcome="Error" timestamp="2026-01-07T09:57:41.2169349+01:00">
+        <Text>[xUnit.net 00:00:00.22]     MAS_BT.Tests.TransportManagerIntegrationTests.Neo4j_CapabilityChainFromP100ToP102_HasExpectedRoles [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="BeBlWorkstationUbuntu" outcome="Error" timestamp="2026-01-07T09:57:41.6638412+01:00">
+        <Text>[xUnit.net 00:00:00.67]     MAS_BT.Tests.HandleTransportPlanRequestNodeIntegrationTests.Execute_PublishesTransportPlanUsingNamespaceHolonConfig [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

@@ -156,3 +156,14 @@ The manager requests these capabilities, receives offers, builds a single `Capab
 - Use `ComposedOf` to verify that each composite handover capability includes Docking + Store/Retrieve.
 - The model supports synchronous and asynchronous transfers with the same role/topology rules.
 - The manager should cache offers briefly and revalidate constraints before execution.
+
+## 10) Test Coverage Snapshot
+
+| Scenario | Test | Coverage Type | Notes |
+| --- | --- | --- | --- |
+| Capability chain validation | `TransportCapabilityPlannerTests` (unit) | Pure planner logic | Exercises role/topology/payload rules without external systems; run via `dotnet test MAS-BT/MAS-BT.csproj --filter TransportCapabilityPlannerTests`. |
+| Neo4j capability metadata sanity | `TransportManagerIntegrationTests.Neo4j_CapabilityChainFromP100ToP103_HasExpectedRoles` | Neo4j-only integration | Queries the NamespaceHolon graph to ensure Dock/Store/Retrieve metadata stays consistent and constraints exist. |
+| MQTT response collection | `TransportManagerIntegrationTests.CollectTransportResponsesNode_ConsumesTransportPlanResponseOverRealMqtt` | MQTT-only integration | Publishes a synthetic transport response over MQTT and validates the collector node stores `CapabilitySequence` data. Requires reachable broker credentials from `NamespaceHolonTestConfig`. |
+| End-to-end transport plan publishing | `HandleTransportPlanRequestNodeIntegrationTests.Execute_PublishesTransportPlanUsingNamespaceHolonConfig` | Neo4j + MQTT integration | Drives the dispatching node with a real transport request, builds a plan via Neo4j, and asserts the consent response arrives on `/Namespace/TransportPlan/Response`. Skips automatically if Neo4j/MQTT are unavailable. |
+
+All integration tests rely on the `NamespaceHolonIntegration` collection (see `tests/InitializationTreeIntegrationTests.cs`) which loads credentials from `MAS-BT/configs/NamespaceHolon.json`. Ensure Neo4j and MQTT endpoints are reachable before running the suite to avoid skipped tests.

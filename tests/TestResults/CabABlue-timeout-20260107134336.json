@@ -1,0 +1,117 @@
+[
+  {
+    "direction": "out",
+    "actor": "DispatchingAgent",
+    "topic": "/testdad4db77fc1c4934a4fc08fc53c97224/TransportPlan/Request",
+    "type": "callForProposal/TransportRequest",
+    "conversation": "https://smartfactory.de/shells/LG3JsASu4_",
+    "sender": "DispatchingAgent",
+    "receiver": "TransportManager",
+    "payload": {
+      "frame": {
+        "sender": {
+          "identification": {
+            "id": "DispatchingAgent"
+          },
+          "role": {
+            "name": "DispatchingAgent"
+          }
+        },
+        "receiver": {
+          "identification": {
+            "id": "TransportManager"
+          },
+          "role": {
+            "name": "TransportManager"
+          }
+        },
+        "type": "callForProposal/TransportRequest",
+        "conversationId": "https://smartfactory.de/shells/LG3JsASu4_"
+      },
+      "interactionElements": [
+        {
+          "idShort": "ProductId",
+          "kind": "Instance",
+          "modelType": "Property",
+          "valueType": "string",
+          "value": "https://smartfactory.de/shells/LG3JsASu4_"
+        }
+      ]
+    }
+  },
+  {
+    "direction": "out",
+    "actor": "ProductAgent",
+    "topic": "/testdad4db77fc1c4934a4fc08fc53c97224/ManufacturingSequence/Request",
+    "type": "callForProposal/ManufacturingSequence",
+    "conversation": "https://smartfactory.de/shells/LG3JsASu4_",
+    "sender": "ProductAgent",
+    "receiver": "DispatchingAgent",
+    "payload": {
+      "frame": {
+        "sender": {
+          "identification": {
+            "id": "ProductAgent"
+          },
+          "role": {
+            "name": "ProductAgent"
+          }
+        },
+        "receiver": {
+          "identification": {
+            "id": "DispatchingAgent"
+          },
+          "role": {
+            "name": "DispatchingAgent"
+          }
+        },
+        "type": "callForProposal/ManufacturingSequence",
+        "conversationId": "https://smartfactory.de/shells/LG3JsASu4_"
+      },
+      "interactionElements": [
+        {
+          "idShort": "ProductId",
+          "kind": "Instance",
+          "modelType": "Property",
+          "valueType": "string",
+          "value": "https://smartfactory.de/shells/LG3JsASu4_"
+        },
+        {
+          "idShort": "RequirementId",
+          "kind": "Instance",
+          "modelType": "Property",
+          "valueType": "string",
+          "value": "req-root"
+        },
+        {
+          "idShort": "ManufacturingSequenceSnapshot",
+          "kind": "Instance",
+          "modelType": "SubmodelElementCollection",
+          "value": [
+            {
+              "idShort": "ProductId",
+              "kind": "Instance",
+              "modelType": "Property",
+              "valueType": "string",
+              "value": "https://smartfactory.de/shells/LG3JsASu4_"
+            },
+            {
+              "idShort": "CompletedSteps",
+              "kind": "Instance",
+              "modelType": "Property",
+              "valueType": "string",
+              "value": "[\u0022Load\u0022,\u0022Unload\u0022]"
+            },
+            {
+              "idShort": "CurrentStep",
+              "kind": "Instance",
+              "modelType": "Property",
+              "valueType": "string",
+              "value": "Assemble"
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

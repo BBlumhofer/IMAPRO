@@ -187,7 +187,7 @@ public sealed class InitializationTreeIntegrationTests
         var expectedAgents = sandbox.ExpectedAgents.Select(a => a).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var (brokerHost, brokerPort) = ResolveBroker(configRoot);
 
-        await using var monitorHandle = new MqttTestClientHandle(brokerHost, brokerPort, $"{sandbox.Namespace}_monitor");
+        await using var monitorHandle = new SandboxMqttTestClientHandle(brokerHost, brokerPort, $"{sandbox.Namespace}_monitor");
         await monitorHandle.ConnectAsync();
         await monitorHandle.Client.SubscribeAsync($"/{sandbox.Namespace}/register");
 
@@ -234,7 +234,7 @@ public sealed class InitializationTreeIntegrationTests
         var expectedAgents = sandbox.ExpectedAgents.Select(a => a).ToList();
         var (brokerHost, brokerPort) = ResolveBroker(configRoot);
 
-        await using var waitHandle = new MqttTestClientHandle(brokerHost, brokerPort, $"{sandbox.Namespace}_wait");
+        await using var waitHandle = new SandboxMqttTestClientHandle(brokerHost, brokerPort, $"{sandbox.Namespace}_wait");
         await waitHandle.ConnectAsync();
 
         var context = new BTContext(NullLogger<BTContext>.Instance)
@@ -688,11 +688,11 @@ internal sealed class NamespaceHolonConfigSandbox : IAsyncDisposable
     }
 }
 
-internal sealed class MqttTestClientHandle : IAsyncDisposable
+internal sealed class SandboxMqttTestClientHandle : IAsyncDisposable
 {
     public MessagingClient Client { get; }
 
-    public MqttTestClientHandle(string host, int port, string clientIdPrefix)
+    public SandboxMqttTestClientHandle(string host, int port, string clientIdPrefix)
     {
         var clientId = $"{clientIdPrefix}_{Guid.NewGuid():N}";
         Client = new MessagingClient(new MqttTransport(host, port, clientId), $"{clientId}/logs");

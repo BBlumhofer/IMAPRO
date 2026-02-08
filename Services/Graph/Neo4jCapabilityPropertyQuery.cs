@@ -57,10 +57,12 @@ public sealed class Neo4jCapabilityPropertyQuery : ICapabilityPropertyQuery
         // The graph stores the value/range/list payload in sub-properties below the container.
         // We therefore fetch the container node and all reachable child nodes up to a small depth.
         var query = @"
-MATCH (a:Asset)-[:PROVIDES_CAPABILITY]->(cap:Capability)-[:HAS_PROPERTY]->(p:CapabilityPropertyContainer)
-WHERE a.shell_id = $moduleShellId AND cap.idShort = $capabilityIdShort
-OPTIONAL MATCH (p)-[*1..5]->(child)
-RETURN p AS container, collect(DISTINCT child) AS children";
+    MATCH (a:Asset)-[:PROVIDES_CAPABILITY]->(cap:Capability)
+    WHERE a.shell_id = $moduleShellId AND cap.idShort = $capabilityIdShort
+    OPTIONAL MATCH (cap)-[:HAS_PROPERTY|HAS_ELEMENT|REFERS_TO*0..5]->(container)
+    WHERE container.idShort IS NOT NULL
+    OPTIONAL MATCH (container)-[*1..5]->(child)
+    RETURN DISTINCT container AS container, collect(DISTINCT child) AS children";
 
         var cursor = await session.RunAsync(
             query,
@@ -87,8 +89,22 @@ RETURN p AS container, collect(DISTINCT child) AS children";
         // Embedding is stored as comma-separated float list (string)
         var embedding = TryParseEmbedding(GetString(container, "embedding") ?? GetString(container, "Embedding"));
 
-        // Some graphs might duplicate the payload on the container itself.
+        // Some graphs duplicate the payload on the container itself.
         var value = GetString(container, "value") ?? GetString(container, "Value");
+
+        // Also check common semantic keys that some imports put directly on the collection node
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            foreach (var candidate in new[] { "transferRole", "topologyType", "dockRole", "direction", "requiredPartnerRole", "allowedTopologyTypes" })
+            {
+                var cand = GetString(container, candidate);
+                if (!string.IsNullOrWhiteSpace(cand))
+                {
+                    value = cand;
+                    break;
+                }
+            }
+        }
         var min = TryParseDouble(GetString(container, "min") ?? GetString(container, "Min"));
         var max = TryParseDouble(GetString(container, "max") ?? GetString(container, "Max"));
         var listValues = TryParseStringList(container.Properties.TryGetValue("listValues", out var listObj) ? listObj : null);

@@ -9,6 +9,7 @@ using AasSharpClient.Models.ProcessChain;
 using BaSyx.Models.AdminShell;
 using MAS_BT.Core;
 using MAS_BT.Services.Graph;
+using MAS_BT.Services.Transport;
 using MAS_BT.Tools;
 using Microsoft.Extensions.Logging;
 using ActionModel = AasSharpClient.Models.Action;
@@ -92,7 +93,7 @@ public class PlanCapabilityOfferNode : BTNode
             }
 
             var json = await referenceQuery.GetCapabilityReferenceJsonAsync(moduleId, request.Capability).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(json) || !TryParseNeo4jReferenceJson(json!, out var modelRef))
+            if (string.IsNullOrWhiteSpace(json) || !CapabilityReferenceFactory.TryParseNeo4jReferenceJson(json, out var modelRef))
             {
                 Logger.LogError("PlanCapabilityOffer: capability reference missing/invalid for capability {Capability} (module={Module})", request.Capability, moduleId);
                 return NodeStatus.Failure;
@@ -248,86 +249,6 @@ public class PlanCapabilityOfferNode : BTNode
         offer.AddAction(fallbackAction);
         Logger.LogDebug("EnsureOfferHasActionInputParameters: added fallback action {Title}", title);
         try { Console.WriteLine($"[DEBUG] EnsureOfferHasActionInputParameters: added fallback action {title}"); } catch {}
-    }
-
-    private sealed record Neo4jReferenceKey(string? Type, string? Value);
-
-    private static bool TryParseNeo4jReferenceJson(string json, out Reference reference)
-    {
-        reference = null!;
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return false;
-        }
-
-        List<Neo4jReferenceKey>? keysDto;
-        try
-        {
-            keysDto = JsonFacade.Deserialize<List<Neo4jReferenceKey>>(json);
-        }
-        catch
-        {
-            return false;
-        }
-
-        if (keysDto == null || keysDto.Count == 0)
-        {
-            return false;
-        }
-
-        var keys = new List<IKey>();
-        foreach (var dto in keysDto)
-        {
-            var typeText = dto?.Type;
-            var valueText = dto?.Value;
-            if (string.IsNullOrWhiteSpace(typeText) || string.IsNullOrWhiteSpace(valueText))
-            {
-                continue;
-            }
-
-            if (!TryMapKeyType(typeText!, out var keyType))
-            {
-                continue;
-            }
-
-            keys.Add(new Key(keyType, valueText!.Trim()));
-        }
-
-        if (keys.Count == 0)
-        {
-            return false;
-        }
-
-        reference = new Reference(keys)
-        {
-            Type = ReferenceType.ModelReference
-        };
-        return true;
-    }
-
-    private static bool TryMapKeyType(string typeText, out KeyType keyType)
-    {
-        keyType = default;
-
-        if (string.IsNullOrWhiteSpace(typeText))
-        {
-            return false;
-        }
-
-        if (Enum.TryParse<KeyType>(typeText.Trim(), ignoreCase: true, out var parsed))
-        {
-            keyType = parsed;
-            return true;
-        }
-
-        // tolerate common variations
-        if (string.Equals(typeText, "SubmodelElementCollection", StringComparison.OrdinalIgnoreCase))
-        {
-            keyType = KeyType.SubmodelElementCollection;
-            return true;
-        }
-
-        return false;
     }
 
     private static void CopyPropertyContainersToInputParameters(ActionModel action, CapabilityContainer container)

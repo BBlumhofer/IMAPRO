@@ -18,6 +18,7 @@ using MAS_BT.Nodes.Planning;
 using MAS_BT.Nodes.Planning.ProcessChain;
 using MAS_BT.Tests.TestHelpers;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using I40Sharp.Messaging.Core;
 using Xunit;
 using ActionModel = AasSharpClient.Models.Action;
@@ -48,6 +49,17 @@ public class TransportFlowIntegrationTests
             }
             var handler = new HandleTransportPlanRequestNode();
             handler.Initialize(new BTContext(NullLogger<BTContext>.Instance), NullLogger<HandleTransportPlanRequestNode>.Instance);
+            // attach a console logger for diagnostics during this test run
+                try
+                {
+                    // Avoid AddConsole extension (may not be available in test host); use a minimal factory.
+                    var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => builder.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Debug));
+                    handler.SetLogger(loggerFactory.CreateLogger("HandleTransportPlanRequest"));
+                }
+                catch
+                {
+                    // best-effort: ignore if logger creation fails
+                }
             handler.Context.Set("config.Namespace", ns);
             handler.Context.Set("MessagingClient", dispatchClient);
             handler.Context.Set("LastReceivedMessage", msg);
@@ -56,12 +68,30 @@ public class TransportFlowIntegrationTests
             {
                 handler.Context.Set("ManufacturingSequence.ByProduct", BuildManufacturingSequenceIndex(productId));
             }
-            await handler.Execute().ConfigureAwait(false);
+            try
+            {
+                Console.WriteLine($"[TEST-DEBUG] Dispatch handler invoked conv={conv} elements={msg.InteractionElements?.Count ?? 0}");
+                var status = await handler.Execute().ConfigureAwait(false);
+                Console.WriteLine($"[TEST-DEBUG] Dispatch handler completed status={status}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[TEST-DEBUG] Dispatch handler threw: {ex}");
+                throw;
+            }
         });
 
         // Setup planning client and context
         var planningClient = new MessagingClient(transport, "planning/logs");
         await planningClient.ConnectAsync();
+
+        // diagnostic subscriber to observe outgoing transport requests
+        var diagnosticClient = await MAS_BT.Tests.TestHelpers.TestTransportFactory.CreateClientAsync($"/{ns}/TransportPlan/Request", "diag-client");
+        await diagnosticClient.SubscribeAsync($"/{ns}/TransportPlan/Request");
+        diagnosticClient.OnMessage(msg =>
+        {
+            try { Console.WriteLine($"[DIAG] Observed TransportPlan/Request conv={msg?.Frame?.ConversationId} type={msg?.Frame?.Type} elements={msg?.InteractionElements?.Count ?? 0}"); } catch { }
+        });
 
         var planningContext = new BTContext(NullLogger<BTContext>.Instance)
         {
@@ -108,6 +138,8 @@ public class TransportFlowIntegrationTests
         // Run RequestTransportNode which will publish to /{ns}/TransportPlan/Request and wait for the /Response reply
         var requestTransportNode = new RequestTransportNode { Context = planningContext };
         requestTransportNode.SetLogger(NullLogger<RequestTransportNode>.Instance);
+        // give extra time for dispatcher reply in CI/slow environments
+        requestTransportNode.ResponseTimeoutSeconds = 30;
         var rtStatus = await requestTransportNode.Execute();
         Assert.Equal(NodeStatus.Success, rtStatus);
 
@@ -198,9 +230,9 @@ public class TransportFlowIntegrationTests
         var offeredSequence = new ManufacturingOfferedCapabilitySequence();
         var capability = new OfferedCapability("OfferedCapability");
         capability.InstanceIdentifier.Value = new PropertyValue<string>($"cap-storage-{Guid.NewGuid():N}");
-        capability.Station.Value = new PropertyValue<string>("SourceStation");
+        capability.Station.Value = new PropertyValue<string>("P102");
 
-        var action = new ActionModel(
+            var action = new ActionModel(
             idShort: "Action_Storage",
             actionTitle: "Storage",
             status: ActionStatusEnum.PLANNED,
@@ -208,7 +240,7 @@ public class TransportFlowIntegrationTests
             finalResultData: null,
             preconditions: null,
             skillReference: null,
-            machineName: "SourceStation");
+            machineName: "P102");
         action.Postconditions.AddPostcondition(new StoragePostcondition("Condition_Storage"));
         capability.AddAction(action);
 

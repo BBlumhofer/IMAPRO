@@ -85,7 +85,7 @@ public class RequestTransportNode : BTNode
         for (var index = 0; index < orderedRequirements.Count; index++)
         {
             var requirement = orderedRequirements[index];
-            var target = this.Context.AgentId;
+            var target = this.Context.Get<string>("ModuleId") ?? this.Context.AgentId;
 
             if (string.IsNullOrWhiteSpace(target))
             {
